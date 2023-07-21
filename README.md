@@ -1,28 +1,6 @@
 # withtail
 > 우리집 강아지 고양이 쇼핑몰 놀이터!
 
-[![NPM Version][npm-image]][npm-url]
-[![Build Status][travis-image]][travis-url]
-[![Downloads Stats][npm-downloads]][npm-url]
-
-한 두 문단으로 프로젝트 소개 글을 작성합니다.
-
-![](../header.png)
-
-## 설치 방법
-
-OS X & 리눅스:
-
-```sh
-npm install my-crazy-module --save
-```
-
-윈도우:
-
-```sh
-edit autoexec.bat
-```
-
 ## 사용 예제
 
 스크린 샷과 코드 예제를 통해 사용 방법을 자세히 설명합니다.
