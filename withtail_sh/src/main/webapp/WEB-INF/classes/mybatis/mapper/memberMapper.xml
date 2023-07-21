@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="member">
+	
+	<select id="loginMember" parameterType="String" resultType="com.sp.withtail.member.Member">
+		SELECT m.num, membership, userId, userName, nickName, userPwd, regDate, modifyDate, lastLogin, email
+		FROM member m
+		JOIN member1 m1 ON m1.num = m.num
+		WHERE userId = #{userId} AND enabled != 0
+	</select>
+	
+	<select id="memberSeq" resultType="Long">
+       SELECT member_seq.NEXTVAL FROM dual 
+    </select>
+    
+    <insert id="insertMember" parameterType="Long">
+		INSERT INTO member(num, membership) VALUES (#{num}, 1) 
+    </insert>
+    
+     <insert id="insertMember1" parameterType="com.sp.withtail.member.Member">
+		INSERT INTO member1(userId,num,userName,nickName,userPwd,enabled,regDate,modifyDate,lastLogin,failureCnt,point,email)
+		VALUES (#{userId}, #{num}, #{userName},#{nickName}, #{userPwd}, 1, SYSDATE, SYSDATE,SYSDATE , 0,  0, #{email}) 
+    </insert>
+    
+    <select id="readMember" parameterType="String" resultType="com.sp.withtail.member.Member">
+	    select userId,num,userName,nickName,userPwd,enabled,regDate,modifyDate,lastLogin,failureCnt,point,email 
+	    from member1 where userId = #{userId}
+    </select>
+    
+    <select id="readMember1" parameterType="String" resultType="com.sp.withtail.member.Member">
+	    select userId,num,userName,nickName,userPwd,enabled,regDate,modifyDate,lastLogin,failureCnt,point,email 
+	    from member1 where nickName = #{nickName}
+    </select>
+    
+    <select id="readMemberByEmail" parameterType="String" resultType="com.sp.withtail.member.Member">
+	    select userId,num,userName,nickName,userPwd,enabled,regDate,modifyDate,lastLogin,failureCnt,point,email 
+	    from member1 where email = #{email}
+    </select>
+    
+    <update id="updateMember" parameterType="com.sp.withtail.member.Member">
+    	UPDATE member1
+    	SET userPwd = #{userPwd}
+    	WHERE userId = #{userId}
+    </update>
+    
+    <insert id="getCoupon" parameterType="com.sp.withtail.member.Member">
+    	INSERT INTO memberCoupon(userId, couponNum, used)
+            VALUES(#{userId} , 15, 0)
+    </insert>
+    
+    
+    
+    
+</mapper>

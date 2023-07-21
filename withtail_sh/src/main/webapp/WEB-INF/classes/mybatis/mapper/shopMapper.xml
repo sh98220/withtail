@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="shop">
+	<!-- 현재 카테고리 -->
+	<select id="readCategory" resultType="com.sp.withtail.shop.Product" parameterType="long">
+		SELECT dept, ctNum, ctName
+		FROM category
+		WHERE ctNum = #{ctNum}
+	</select>
+	
+	<!-- 동일 레벨 카테고리 -->
+	<select id="listCategory" resultType="com.sp.withtail.shop.Product">
+		SELECT dept, ctNum, ctName, parentCt
+		FROM category
+		WHERE parentCt = (
+			SELECT parentCt
+			FROM category
+			WHERE ctNum = #{ctNum}
+		)
+	</select>
+	
+	<!-- 바로 하위 카테고리 리스트 -->
+	<select id="listSubCategory" resultType="com.sp.withtail.shop.Product" parameterType="long">
+		SELECT dept, ctNum, ctName, parentCt
+		FROM category
+    	WHERE parentCt = #{ctNum}
+    	ORDER BY ctNum
+	</select>
+	
+	<select id="readSubCategory" resultType="com.sp.withtail.shop.Product" parameterType="long">
+		SELECT ctNum, ctName, parentCt
+		FROM category
+		WHERE ctNum = #{ctNum}
+	</select>
+	
+	<!-- 상품 개수 -->
+	<select id="dataCount" parameterType="map" resultType="Integer">  
+		SELECT NVL(COUNT(DISTINCT i.itemName), 0)
+		FROM item i
+		JOIN (
+	        SELECT ctName, ctNum
+	        FROM category
+	        START WITH parentCT = #{ctNum} OR ctNum = #{ctNum}
+	        CONNECT BY PRIOR ctNum = parentCT
+	    ) cc ON cc.ctNum = i.ctNum
+		WHERE showNotice = 0
+	</select>
+	
+	<!-- 상품 리스트 -->
+	<select id="listProd" parameterType="map" resultType="com.sp.withtail.shop.Product">
+		SELECT DISTINCT i.itemNum, i.itemName, i.discount, i.mainImage, i.itemPrice, 
+			i.itemPrice - (i.itemPrice * (i.discount/100)) dcPrice,
+            NVL(orderCount, 0) orderCount,
+            NVL(rvCount, 0) rvCount
+	    FROM item i
+	    JOIN (
+	        SELECT ctName, ctNum
+	        FROM category
+	        START WITH parentCT = #{ctNum} OR ctNum = #{ctNum}
+	        CONNECT BY PRIOR ctNum = parentCT
+	    ) c ON c.ctNum = i.ctNum
+        LEFT OUTER JOIN (
+			SELECT itemNum, COUNT(*) orderCount
+			FROM orderDetail
+			GROUP BY itemNum
+		) od ON i.itemNum = od.itemNum
+        LEFT OUTER JOIN (
+			SELECT itemNum, COUNT(*) rvCount
+			FROM review
+			GROUP BY itemNum
+		) rv ON i.itemNum = rv.itemNum
+	    LEFT OUTER JOIN itemJjim ij ON i.itemNum = ij.itemNum
+	    WHERE showNotice = 0
+	    <choose>
+	    	<when test="sortNo==1">
+	    		ORDER BY i.itemName
+	    	</when>
+	    	<when test="sortNo==2">
+	    		ORDER BY i.itemPrice
+	    	</when>
+	    	<when test="sortNo==3">
+	    		ORDER BY i.itemPrice DESC
+	    	</when>
+	    	<when test="sortNo==4">
+	    		ORDER BY orderCount DESC
+	    	</when>
+	    	<when test="sortNo==5">
+	    		ORDER BY rvCount DESC
+	    	</when>
+	    	<otherwise>
+	    		ORDER BY i.itemNum DESC
+	    	</otherwise>
+	    </choose>
+		OFFSET #{offset} ROWS FETCH FIRST #{size} ROWS ONLY
+	</select>
+	 
+	<!-- 상품 보기 -->
+	<select id="readProd" parameterType="Long" resultType="com.sp.withtail.shop.Product">
+		SELECT DISTINCT i.itemNum, i.itemName, i.discount, i.mainImage, i.itemPrice, TO_CHAR(i.itemContent) itemContent,
+		    i.itemPrice - (i.itemPrice * (i.discount/100)) dcPrice,
+		    i.itemPoint, i.deliveryFee,
+		    NVL(rvCount, 0) rvCount
+		FROM item i
+		LEFT OUTER JOIN itemJjim ij ON i.itemNum = ij.itemNum
+		LEFT OUTER JOIN (
+			SELECT itemNum, COUNT(*) rvCount
+			FROM review
+			GROUP BY itemNum
+		) rv ON i.itemNum = rv.itemNum
+		WHERE showNotice = 0 AND i.itemNum = #{itemNum}
+	</select>
+	
+	<!-- 상품 추가 이미지 -->
+	<select id="listProdImage" parameterType="Long" resultType="com.sp.withtail.shop.Product">
+		SELECT photoNum, itemNum, photoName
+		FROM itemPhoto
+		WHERE itemNum = #{itemNum}
+	</select>
+	
+	<!-- 옵션명 -->
+	<select id="listProdOption" parameterType="Long" resultType="com.sp.withtail.shop.Product">
+		SELECT option1Num, itemNum, option1Name, parent
+		FROM option1
+		WHERE itemNum = #{itemNum}
+		ORDER BY parent NULLS FIRST, parent
+	</select>
+	
+	<!-- 옵션 내용 -->
+	<select id="listOptionDetail" parameterType="Long" resultType="com.sp.withtail.shop.Product">
+		SELECT option2Num, option1Num, option2Name, extraPrice
+		FROM option2
+		WHERE option1Num = #{option1Num}
+		ORDER BY option2Num
+	</select>
+	
+	<!-- 상품 찜 추가 -->
+	<insert id="insertLike" parameterType="map">
+		INSERT INTO itemJjim(userId, itemNum)
+		VALUES(#{userId}, #{itemNum})
+	</insert>
+	
+	<!-- 상품 찜 삭제 -->
+	<delete id="deleteLike" parameterType="map">
+		DELETE itemJjim
+		WHERE userId=#{userId} AND itemNum=#{itemNum}
+	</delete>
+	
+	<!-- 상품 찜 여부 -->
+	<select id="userLiked" parameterType="map" resultType="com.sp.withtail.shop.Product">
+		SELECT userId, itemNum
+		WHERE userID = #{userId} AND itemNum = #{itemNum}
+	</select>
+	
+	<!-- 연관 상품 -->
+	<select id="listRelated" parameterType="Long" resultType="com.sp.withtail.shop.Product">
+		SELECT DISTINCT i.itemNum, i.itemName, i.discount, i.mainImage, i.itemPrice, 
+			i.itemPrice - (i.itemPrice * (i.discount/100)) dcPrice, i.ctNum
+	    FROM item i
+	    LEFT OUTER JOIN itemJjim ij ON i.itemNum = ij.itemNum
+	    WHERE showNotice = 0 AND i.ctNum=(SELECT ctNum FROM item WHERE itemNum=#{itemNum})
+	    	AND NOT i.itemNum=#{itemNum}
+	</select>
+	
+	<!-- 리뷰 개수 -->
+	<select id="rvDataCount" parameterType="map" resultType="Integer">
+		SELECT NVL(COUNT(*), 0) rvCount
+		FROM review r
+		JOIN item i ON r.itemNum = i.itemNum
+		WHERE i.itemNum = #{itemNum}
+	</select>
+
+</mapper>

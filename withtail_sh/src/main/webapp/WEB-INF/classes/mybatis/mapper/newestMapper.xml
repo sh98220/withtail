@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="newest">
+	<select id="newestList" parameterType="map" resultType="com.sp.withtail.newest.Newest">
+		SELECT i.itemNum, i.ctNum, itemName, i.itemPrice,  i.itemPrice * (100-NVL(discount,0)) * 0.01 finalPrice,
+	           discount, mainImage
+	    FROM item i
+	    JOIN (
+	        SELECT ctNum
+	        FROM category
+	        WHERE CONNECT_BY_ROOT ctNum = #{condition}
+	        START WITH parentCT IS NULL
+	        CONNECT BY PRIOR ctNum = parentCT
+	    ) c ON c.ctNum =  i.ctNum
+	    WHERE regDate >= SYSDATE - 7 AND showNotice = 0
+        ORDER BY regDate DESC, itemNum DESC	 
+	</select>
+	
+	<select id="dataCount" parameterType="map" resultType="Integer">
+	   SELECT COUNT(*)
+	    FROM item i
+	    JOIN (
+	        SELECT ctNum
+	        FROM category
+	        WHERE CONNECT_BY_ROOT ctNum = #{condition}
+	        START WITH parentCT IS NULL
+	        CONNECT BY PRIOR ctNum = parentCT
+	    ) c ON c.ctNum =  i.ctNum
+	    WHERE regDate >= SYSDATE - 7 AND showNotice = 0
+        ORDER BY regDate DESC, itemNum DESC
+	</select>
+</mapper>

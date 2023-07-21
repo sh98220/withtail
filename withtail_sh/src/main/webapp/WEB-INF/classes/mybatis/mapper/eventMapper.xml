@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="event">
+
+	<insert id="insertEventApply" parameterType="com.sp.withtail.event.Event">
+		INSERT INTO eventapply(num,userId,eventNum,regDate)
+		VALUES(eventapply_seq.NEXTVAL,#{userId},#{num},SYSDATE)
+	</insert>
+
+	<sql id="where-list">
+		<choose>
+			<when test="condition == 'all' ">
+			   ( INSTR(subject, #{keyword}) &gt; 0
+		          OR DBMS_LOB.INSTR(content, #{keyword}) &gt; 0 )
+			</when>
+			<otherwise>
+			   ( TO_CHAR(${condition}, 'YYYYMMDD') = #{keyword}
+		          OR TO_CHAR(${condition}, 'YYYY-MM-DD') = #{keyword} )
+			</otherwise>
+		</choose>
+	</sql>
+	
+	<sql id="period-list">
+		<choose>
+			<when test="category == 'progress' ">
+				( startDate &lt;= SYSDATE  AND endDate &gt; SYSDATE )
+			</when>
+			<when test="category == 'upcoming' ">
+				( startDate &gt;= SYSDATE )
+			</when>
+			<when test="category == 'winner' ">
+				( maxCount != 0 AND winningDate &lt;= SYSDATE AND ADD_MONTHS(winningDate, 6) &gt;= SYSDATE ) 
+			</when>
+			<when test="category == 'ended' ">
+				( endDate &lt; SYSDATE )
+			</when>
+		</choose>
+	</sql>
+	
+	<!-- 글개수 -->
+	<select id="dataCount" parameterType="map" resultType="Integer">
+		SELECT NVL(COUNT(*), 0)
+		FROM event
+		<where>
+			<if test="enabled != null and enabled == 0">
+				enabled = 0
+			</if>
+			<if test="category != 'all' ">
+				AND <include refid="period-list"/>
+			</if>
+			<if test="keyword!=null and keyword!='' ">
+				AND <include refid="where-list"/>
+			</if>
+		</where>   
+	</select>
+	
+	<select id="winnerCount" parameterType="Long" resultType="Integer">
+		SELECT count(*)
+		FROM event e
+		JOIN eventApply ea ON e.num = ea.eventNum
+		JOIN eventWinner ew on ew.winnerNum = ea.num
+		WHERE e.num = #{num}
+	</select>
+	
+	<!-- 글리스트 -->
+	<select id="listEvent" parameterType="map" resultType="com.sp.withtail.event.Event">
+		SELECT e.num, subject, hitCount, enabled,
+			   TO_CHAR(startDate,'YYYY-MM-DD HH24:MI') startDate,
+			   TO_CHAR(endDate, 'YYYY-MM-DD HH24:MI') endDate, 
+			   TO_CHAR(winningDate, 'YYYY-MM-DD HH24:MI') winningDate,
+			   TO_CHAR(regDate, 'YYYY-MM-DD HH24:MI') regDate, maxCount, imageFilename
+			   <if test="category != 'winner'">
+			   		, NVL(applyCount, 0) applyCount
+			   </if>
+			   <if test="category == 'winner'">
+			   		, NVL(winnerCount, 0) winnerCount
+			   </if>
+		FROM event e
+		<if test="category != 'winner'">
+			LEFT OUTER JOIN (
+				SELECT num, COUNT(*) applyCount
+				FROM eventapply
+				GROUP BY num
+			) t ON e.num = t.num
+		</if>
+		<if test="category == 'winner'">
+			LEFT OUTER JOIN (
+				SELECT winnernum, COUNT(*) winnerCount
+				FROM eventWinner
+				GROUP BY winnernum
+			) w ON e.num = w.winnernum
+		</if>
+		<where>
+			<if test="enabled != null and enabled == 0">
+				enabled = 0
+			</if>
+			<if test="category != 'all' ">
+				AND <include refid="period-list"/>
+			</if>
+			<if test="keyword != null and keyword != ''">
+				AND <include refid="where-list"/>
+			</if>
+		</where>
+		ORDER BY endDate DESC
+		OFFSET #{offset} ROWS FETCH FIRST #{size} ROWS ONLY
+	</select>
+
+	<!-- 글보기 -->
+
+	<select id="readEvent" parameterType="Long" resultType="com.sp.withtail.event.Event">
+		SELECT num, subject, content, 
+			TO_CHAR(startDate,'YYYY-MM-DD HH24:MI') startDate,
+			TO_CHAR(endDate, 'YYYY-MM-DD HH24:MI') endDate, 
+			TO_CHAR(winningDate, 'YYYY-MM-DD HH24:MI') winningDate, 
+			TO_CHAR(regDate, 'YYYY-MM-DD HH24:MI') regDate, 
+			maxCount, enabled, hitCount,imageFilename
+		FROM event
+		WHERE num = #{num}
+	</select>
+	
+	<select id="listWinner" parameterType="Long" resultType="com.sp.withtail.event.Event">
+		SELECT ea.userId, nickName, rank
+		FROM event e
+		JOIN eventApply ea ON e.num = ea.eventNum
+		JOIN eventWinner ew on ew.winnerNum = ea.num
+		JOIN member1 m on ea.userId = m.userId
+		WHERE e.num = #{num}
+	</select>
+	<!-- 조회수 증가 -->
+	<update id="updateHitCount" parameterType="Long">
+		UPDATE event SET hitCount = hitCount+1 WHERE num = #{num}
+	</update>
+	<!-- AND 가 필요 없는 경우 자동으로 제거 됨 -->
+	<!-- 이전글 -->
+	<select id="preReadEvent" parameterType="map" resultType="com.sp.withtail.event.Event">
+		SELECT num, subject
+		FROM event
+		<where>
+			<if test="enabled != null and enabled == 0">
+				enabled = 0
+			</if>
+			<if test="category != 'all' ">
+				AND <include refid="period-list"/>
+			</if>
+			<if test="keyword != null and keyword != '' ">
+				AND <include refid="where-list"/>
+			</if>
+			AND (num &gt; #{num})
+		</where>
+		ORDER BY endDate ASC
+		FETCH FIRST 1 ROWS ONLY
+	</select>
+	<!-- 다음글 -->
+	<select id="nextReadEvent" parameterType="map" resultType="com.sp.withtail.event.Event">
+		SELECT num, subject
+		FROM event
+		<where>
+			<if test="enabled != null and enabled == 0">
+				enabled = 0
+			</if>
+			<if test="category != 'all' ">
+				AND <include refid="period-list"/>
+			</if>
+			<if test="keyword != null and keyword != '' ">
+				AND <include refid="where-list"/>
+			</if>
+			AND (num &lt; #{num})
+		</where>
+		ORDER BY endDate DESC
+		FETCH FIRST 1 ROWS ONLY
+	</select>
+		
+	<select id="countApply" parameterType="com.sp.withtail.event.Event" resultType="Integer">
+		SELECT COUNT(*)
+        FROM eventApply
+        WHERE userId = #{userId} AND eventNum = #{num}
+	</select>
+
+</mapper>

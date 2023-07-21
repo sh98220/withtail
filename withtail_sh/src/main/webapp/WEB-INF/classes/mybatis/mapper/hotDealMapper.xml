@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="hotdeal">
+	<select id="hotdealList" parameterType="map" resultType="com.sp.withtail.hotdeal.HotDeal">
+	
+	    SELECT i.itemNum, i.ctNum, itemName, i.itemPrice,  i.itemPrice * (100-NVL(discount,0)) * 0.01 finalPrice,
+	           discount, mainImage
+	    FROM item i
+	    JOIN (
+	        SELECT ctNum
+	        FROM category
+	        WHERE CONNECT_BY_ROOT ctNum = #{condition}
+	        START WITH parentCT IS NULL
+	        CONNECT BY PRIOR ctNum = parentCT
+	    ) c ON c.ctNum =  i.ctNum
+	    WHERE showNotice = 0 AND discount > 0
+	    ORDER BY discount DESC, itemNum DESC
+	 
+	</select>
+	
+	<select id="dataCount" parameterType="map" resultType="Integer">
+	    		SELECT COUNT(itemNum)
+		FROM item i
+		JOIN (
+			SELECT ctNum
+			FROM category
+			WHERE CONNECT_BY_ROOT ctNum = #{condition}
+			START WITH parentCT IS NULL
+			CONNECT BY PRIOR ctNum = parentCT
+		) c ON c.ctNum = i.ctNum
+		WHERE showNotice = 0 AND discount > 0
+	</select>
+</mapper>

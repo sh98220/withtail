@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="order">
+	<!-- 장바구니 추가 -->
+	<insert id="insertCart" parameterType="com.sp.withtail.order.Order">
+		INSERT INTO cart(cartNum, userId, itemNum, option2Num, option2Num2, quantity, cartRegDate)
+    		VALUES(cart_seq.NEXTVAL, #{userId}, #{itemNum}, #{option2Num, jdbcType=INTEGER}, #{option2Num2, jdbcType=INTEGER}, #{quantity}, SYSDATE)
+	</insert>
+	
+	<select id="readCart" parameterType="map" resultType="com.sp.withtail.order.Order">
+		SELECT cartNum, userId, option2Num, option2Num2, quantity, itemNum, cartRegDate
+		FROM cart
+		WHERE itemNum = #{itemNum} AND option2Num = #{option2Num, jdbcType=INTEGER} AND option2Num2 = #{option2Num2, jdbcType=INTEGER} AND userId = #{userId}
+	</select>
+	
+	<update id="updateCart" parameterType="com.sp.withtail.order.Order">
+		UPDATE cart SET quantity = quantity + #{quantity}, cartRegDate = SYSDATE
+		WHERE itemNum = #{itemNum} AND option2Num = #{option2Num, jdbcType=INTEGER} AND option2Num2 = #{option2Num2, jdbcType=INTEGER} AND userId = #{userId}
+	</update>
+	
+	<delete id="deleteCart" parameterType="map">
+		DELETE FROM cart
+		WHERE userId = #{userId} 
+	</delete>
+	
+	<!-- 장바구니 총 개수, 총 금액 -->
+	<select id="readUserCart" parameterType="String" resultType="com.sp.withtail.order.Order">
+		SELECT SUM(ct.quantity) cartTotalQty, SUM(i.itemPrice * (100-NVL(discount,0)) * 0.01 * ct.quantity + (op2.extraPrice * ct.quantity)) cartTotalPrice, userId
+        FROM cart ct
+        JOIN item i ON ct.itemNum = i.itemNum
+        JOIN option2 op1 ON ct.option2Num = op1.option2Num
+        LEFT JOIN option2 op2 ON ct.option2Num2 = op2.option2Num
+        WHERE userId = #{userId}
+        GROUP BY userId
+	</select>
+	
+	<!-- 주문 전 회원정보 불러오기(포인트, 이메일) -->
+	<select id="readMember" parameterType="String" resultType="com.sp.withtail.order.OrderMember">
+		SELECT m.userId, m.point, m.email, cc.couponCount
+		FROM member1 m
+		LEFT OUTER JOIN(
+		    SELECT m.userId, NVL(COUNT(*),0) couponCount
+		    FROM member1 m
+		    JOIN memberCoupon mc ON m.userId = mc.userId
+		    WHERE m.userId = #{userId} AND mc.used = 0
+		    GROUP BY m.userId
+		) cc ON m.userId = cc.userId
+		WHERE m.userId = #{userId}
+	</select>
+	
+	<!-- 주문 전 회원 기본 배송지 가져오기 -->
+	<select id="readDefAddress" parameterType="String" resultType="com.sp.withtail.order.OrderMember">
+		SELECT m.userId, ad.addNum, ad.addr1, ad.addr2, ad.zip, ad.tel,
+		    ad.memo, ad.addDef, ad.addName
+		FROM member1 m
+		LEFT OUTER JOIN address ad ON m.userId = ad.userId
+		WHERE m.userId = #{userId} AND ad.addDef = 1
+	</select>
+	
+	<!-- 주문 전 회원 최근 입력한 배송지 가져오기 -->
+	<select id="readLastAddress" parameterType="String" resultType="com.sp.withtail.order.OrderMember">
+		SELECT m.userId, ad.addNum, ad.addr1, ad.addr2, ad.zip, ad.tel,
+		    ad.memo, ad.addDef, ad.addName
+		FROM member1 m
+		LEFT OUTER JOIN address ad ON m.userId = ad.userId
+		WHERE m.userId = #{userId}
+		ORDER BY ad.addNum DESC
+		FETCH FIRST 1 ROWS ONLY
+	</select>
+	
+	<!-- 주문 전 회원 배송지 목록 불러오기 -->
+	<select id="listAddress" parameterType="String" resultType="com.sp.withtail.order.OrderMember">
+		SELECT m.userId, ad.addNum, ad.addr1, ad.addr2, ad.zip, ad.tel,
+	    	ad.memo, ad.addDef, ad.addName
+		FROM member1 m
+		LEFT OUTER JOIN address ad ON m.userId = ad.userId
+		WHERE m.userId = #{userId}
+		ORDER BY ad.addDef DESC, ad.addNum DESC
+	</select>
+	
+	<!-- 주문 전 사용안한 쿠폰 불러오기 -->
+	<select id="listCoupon" parameterType="String" resultType="com.sp.withtail.order.OrderMember">
+		SELECT m.userId, mc.couponNum, c.startDate, c.endDate, c.couponName,
+		    c.couponPrice, c.couponCategory, c.couponMinPrice
+		FROM member1 m
+		LEFT OUTER JOIN memberCoupon mc ON m.userId = mc.userId
+		LEFT OUTER JOIN coupon c ON c.couponNum = mc.couponNum
+		WHERE m.userId = #{userId} AND mc.used = 0 AND c.endDate &gt; SYSDATE
+		ORDER BY mc.couponNum DESC
+	</select>
+	
+	<!-- 배송지 개수 -->
+	<select id="addDataCount" parameterType="String" resultType="Integer">
+		SELECT NVL(COUNT(*), 0)
+		FROM address
+		WHERE userId = #{userId}
+	</select>
+	
+	<!-- 선택한 배송지 불러오기 -->
+	<select id="readAdd" parameterType="Long" resultType="com.sp.withtail.order.OrderMember">
+		SELECT addNum, addr1, addr2, zip, tel, memo, addDef, addName
+		FROM address
+		WHERE addNum = #{addNum}
+	</select>
+	
+	<!-- 배송지 추가하기 -->
+	<insert id="insertAdd" parameterType="com.sp.withtail.order.OrderMember">
+		INSERT INTO address(addNum, userId, addr1, addr2, zip, tel, memo, addDef, addName)
+			VALUES (address_seq.NEXTVAL, #{userId}, #{addr1},#{addr2},#{zip},#{tel},#{memo},#{addDef},#{addName})
+	</insert>
+	
+	<!-- 배송지 수정하기 -->  
+	<update id="updateAdd" parameterType="com.sp.withtail.order.OrderMember">
+		UPDATE address SET addr1=#{addr1}, addr2=#{addr2}, zip=#{zip}, tel=#{tel}, memo=#{memo}, addDef=#{addDef}, addName=#{addName}
+		WHERE addNum = #{addNum}
+	</update>
+	
+	<!-- 기본 배송지 체크 해제 -->
+	<update id="basicAddressClear" parameterType="String">
+		UPDATE address SET addDef = 0 WHERE userId = #{userId}
+	</update>
+	
+	<!-- 배송지 삭제 --> 
+	<delete id="deleteAdd" parameterType="Long">
+		DELETE FROM address WHERE addNum = #{addNum}
+	</delete>
+	
+	<!-- 상품 목록 불러오기 -->
+	<select id="listProduct" parameterType="java.util.List" resultType="com.sp.withtail.order.Order">
+		SELECT i.itemNum, i.itemName, i.discount, i.itemPrice, 
+		    i.itemPoint, i.deliveryFee, i.mainImage, i.madeby,
+		    o1.option1Num, o1.option1Name, op1.option2Num, op1.option2Name,
+		    o2.option1Num AS option1Num2, o2.option1Name AS option1Name2,
+		    op2.option2Num AS option2Num2, op2.option2Name AS option2Name2,
+            op1.extraPrice, op2.extraPrice AS extraPrice2
+		FROM item i
+		LEFT OUTER JOIN option1 o1 ON i.itemNum = o1.itemNum
+        LEFT OUTER JOIN option1 o2 ON i.itemNum = o2.itemNum
+		LEFT OUTER JOIN option2 op1 ON NVL(o1.option1Num,0) = NVL(op1.option1Num,0)
+		LEFT OUTER JOIN option2 op2 ON NVL(o2.option1Num,0) = NVL(op2.option1Num,0)
+		WHERE (i.itemNum, NVL(op1.option2Num,0), NVL(op2.option2Num,0)) IN
+		<foreach collection="list" item="item" index="index"
+			open="(" separator="," close=")">
+			(#{item.itemNum}, #{item.option2Num, jdbcType=INTEGER}, #{item.option2Num2, jdbcType=INTEGER})
+		</foreach>
+	</select>
+	
+	<!-- 주문번호 불러오기 -->
+	<select id="readOrderNumber" resultType="Long">
+		SELECT orderList_seq.NEXTVAL FROM dual
+	</select>
+	
+	<!-- 결제내역 인서트 -->
+	<insert id="insertPayDetail" parameterType="com.sp.withtail.order.Order">
+		INSERT INTO payDetail(orderNum, payMethod, cardName, authNumber, authDate)
+    VALUES(#{orderNum}, #{payMethod}, #{cardName}, #{authNumber}, TO_DATE(#{authDate}, 'YYYY-MM-DD HH24:MI:SS'))
+	</insert>
+	
+	<!-- 주문 인서트 -->
+	<insert id="insertOrder" parameterType="com.sp.withtail.order.Order">
+		INSERT INTO orderList(orderNum, totalPurchasePrice, purchaseDate, orderState, totalOriPrice,
+        usedCoupon, usedPoint, userId, deliveryCharge, orderStateDate)
+    VALUES(#{orderNum}, #{totalPurchasePrice}, SYSDATE, 1, #{totalOriPrice}, #{usedCoupon},
+        #{usedPoint}, #{userId}, #{deliveryCharge}, SYSDATE)
+	</insert>
+	
+	<!-- 주문상세 인서트 -->
+	<insert id="insertOrderDetail" parameterType="com.sp.withtail.order.Order">
+		INSERT INTO orderDetail(orderDetailNum, option2Num, price, count, savePoint, purchaseMoney,
+    itemNum, orderNum, option2Num2, salePrice)
+        VALUES(orderDetail_seq.NEXTVAL, #{option2Num, jdbcType=INTEGER}, #{price}, #{count}, #{savePoint},
+        #{purchaseMoney}, #{itemNum}, #{orderNum}, #{option2Num2, jdbcType=INTEGER}, #{salePrice})
+	</insert>
+	
+	<!-- 주문 배송지 인서트 -->
+	<insert id="insertOrderAddress" parameterType="com.sp.withtail.order.Order">
+		INSERT INTO orderAddress(orderNum, addr1, addr2, zip, tel, memo, orderName)
+    VALUES(#{orderNum}, #{addr1}, #{addr2}, #{zip}, #{tel}, #{memo}, #{orderName})
+	</insert>
+	
+	<!-- 쿠폰 사용 -->
+	<update id="updateUsedCoupon" parameterType="Long">
+		UPDATE memberCoupon SET used=1
+		WHERE couponNum = #{usedCouponNum, jdbcType=INTEGER}
+	</update>
+	
+	<!-- 포인트 사용 -->
+	<update id="updateMemberPoint" parameterType="com.sp.withtail.order.Order">
+		UPDATE member1 SET point=point-#{usedPoint}
+			WHERE userId = #{userId}
+	</update>
+	
+	<!-- 포인트 기록 -->
+	<insert id="insertPointDetail" parameterType="com.sp.withtail.order.Order">
+		INSERT INTO point(pointNum, userId, pointChk, amount, balance, pointRegDate)
+    		VALUES(point_seq.NEXTVAL, #{userId}, 1, #{usedPoint}, #{balance}, SYSDATE)
+	</insert>
+
+</mapper>

@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="orderManage">
+
+   <sql id="where-list">
+		<choose>
+			<when test="col == 'orderNum' ">
+			   ( po.orderNum  = #{kwd} )
+			</when>
+			<when test="col == 'invoiceNumber' ">
+			   ( invoiceNumber  = #{kwd} )
+			</when>
+			<when test="col == 'userName'">
+			    INSTR(userName, #{kwd}) &gt; 0
+			</when>
+		</choose>
+	</sql>   
+	
+	<select id="orderCount" parameterType="map" resultType="Integer">
+	    SELECT NVL(COUNT(*),0) 
+	    FROM orderList ol
+	    JOIN member1 m ON m.userId = ol.userId
+        <where>
+			<if test="state == 1">
+				( ol.orderState = 1 ) 
+			</if>
+			<if test="state == 2">
+				( ol.orderState &gt;= 2 AND ol.orderState &lt;= 4 ) 
+			</if>
+			<if test="state == 3">
+				( ol.orderState = 5 ) 
+			</if>
+			<if test="state == 4">
+				( ol.orderState &gt;= 6 AND ol.orderState &lt;= 8 ) 
+			</if>			
+			<if test="kwd!=null and kwd!='' ">
+				AND <include refid="where-list"/>
+			</if>
+		</where>  	     
+	</select>
+	
+	<select id="listOrder" parameterType="map" resultType="com.sp.withtail.admin.orderManage.OrderManage">
+	     SELECT ol.orderNum, ol.userId, m.userName, totalOriPrice, totalPurchasePrice, TO_CHAR(purchaseDate, 'YYYY-MM-DD') purchaseDate, orderState,
+	            TO_CHAR(orderStateDate, 'YYYY-MM-DD') orderStateDate, companyName, invoiceNumber, 
+	            NVL(totalOrderCount, 0) totalOrderCount, NVL(totalQty, 0) totalQty
+	     FROM orderList ol
+	     JOIN member1 m ON m.userId = ol.userId
+	     LEFT OUTER JOIN delivery d ON d.orderNum = ol.orderNum
+         LEFT OUTER JOIN deliveryCompany dc ON dc.companyNum = d.companyNum
+	     LEFT OUTER JOIN (
+	          SELECT orderNum, COUNT(*) totalOrderCount, SUM(count) totalQty
+	          FROM orderDetail
+	          GROUP BY orderNum
+	     ) od ON ol.orderNum = od.orderNum
+	     <where>
+			<if test="state == 1">
+				( ol.orderState = 1 ) 
+			</if>
+			<if test="state == 2">
+				( ol.orderState &gt;= 2 AND ol.orderState &lt;= 4 ) 
+			</if>
+			<if test="state == 3">
+				( ol.orderState = 5 ) 
+			</if>
+			<if test="state == 4">
+				( ol.orderState &gt;= 6 AND ol.orderState &lt;= 8 ) 
+			</if>			
+			<if test="kwd!=null and kwd!='' ">
+				AND <include refid="where-list"/>
+			</if>
+		</where>  
+        ORDER BY ol.orderNum DESC
+        OFFSET #{offset} ROWS FETCH FIRST #{size} ROWS ONLY			     
+	</select>
+	
+	<select id="readOrder" parameterType="long" resultType="com.sp.withtail.admin.orderManage.OrderManage">
+        SELECT ol.orderNum, ol.userId, m.userName, TO_CHAR(purchaseDate, 'YYYY-MM-DD') purchaseDate, totalPurchasePrice,
+	    usedPoint, usedCoupon, deliveryCharge, totalOriPrice, orderState, TO_CHAR(orderStateDate, 'YYYY-MM-DD') orderStateDate,
+	    companyName, invoiceNumber, companyTel, payMethod, cardName, authNumber, TO_CHAR(authDate, 'YYYY-MM-DD HH24:MI:SS') authDate 
+	    FROM orderList ol
+	    JOIN member1 m ON m.userId = ol.userId
+	    LEFT OUTER JOIN payDetail p ON p.orderNum = ol.orderNum
+	    LEFT OUTER JOIN delivery d ON d.orderNum = ol.orderNum
+        LEFT OUTER JOIN deliveryCompany dc ON dc.companyNum = d.companyNum
+        WHERE ol.orderNum = #{orderNum}
+	</select>
+	
+	<select id="readDetail" parameterType="long" resultType="com.sp.withtail.admin.orderManage.OrderDetail">
+	   SELECT od.orderNum, od.orderDetailNum, count, od.price, salePrice, op2.option2Num, op2.option2Name,
+	          od.option2Num2, op22.option2Name option2Name2, od.itemNum, itemName, savePoint
+	   FROM orderDetail od
+	   JOIN item i ON i.itemNum = od.itemNum
+	   LEFT OUTER JOIN option2 op2 ON od.option2Num = op2.option2Num 
+	   LEFT OUTER JOIN option2 op22 ON od.option2Num2 = op22.option2Num
+       WHERE od.orderNum = #{orderNum}	   
+	</select>
+	
+	<select id="detailCount" parameterType="map" resultType="Integer">
+	   SELECT NVL(COUNT(*), 0)
+	   FROM orderList ol 
+	   JOIN member1 m ON ol.userId = m.userId
+	   JOIN orderDetail od ON ol.orderNum = od.orderNum
+	</select>
+	
+	<select id="listOrderDetail" parameterType="map" resultType="com.sp.withtail.admin.orderManage.OrderDetail">
+        SELECT ol.orderNum, ol.userId, m.userName, TO_CHAR(purchaseDate, 'YYYY-MM-DD') purchaseDate, totalPurchasePrice,
+	    savePoint, usedPoint, usedCoupon, deliveryCharge, totalOriPrice, count, salePrice, orderDetailNum,
+	    op2.option2Num, op2.option2Name, od.option2Num2, op22.option2Name option2Name2, i.itemNum, itemPrice, itemName, orderState,
+	    TO_CHAR(orderStateDate, 'YYYY-MM-DD') orderStateDate, companyName, invoiceNumber
+	    FROM orderList ol
+	    JOIN member1 m ON m.userId = ol.userId
+        JOIN orderDetail od ON od.orderNum = ol.orderNum
+	    JOIN item i ON i.itemNum = od.itemNum
+	    LEFT OUTER JOIN option2 op2 ON od.option2Num = op2.option2Num 
+	    LEFT OUTER JOIN option2 op22 ON od.option2Num2 = op22.option2Num	    
+	    LEFT OUTER JOIN delivery d ON d.orderNum = ol.orderNum
+        LEFT OUTER JOIN deliveryCompany dc ON dc.companyNum = d.companyNum
+        WHERE ol.orderNum = #{orderNum}
+	</select>
+	
+	<update id="updateOrderState" parameterType="map">
+	    UPDATE orderList SET orderState = #{orderState}, orderStateDate = SYSDATE
+	    WHERE orderNum = #{orderNum}
+	</update>
+	
+	<select id="listDeliveryCompany" parameterType="map" resultType="com.sp.withtail.admin.orderManage.OrderManage">
+	    SELECT companyNum,companyName, companyTel FROM deliveryCompany
+	</select>
+	
+   <insert id="insertDelivery" parameterType="map">
+       INSERT INTO delivery(deliveryNum, companyNum, orderNum, invoiceNumber ) 
+       VALUES (delivery_seq.NEXTVAL, #{companyNum}, #{orderNum}, #{invoiceNumber})
+   </insert>
+   
+   <update id="updateOrderStateDone" parameterType="map">
+        UPDATE orderList SET orderState = 5
+        WHERE orderNum IN (
+            SELECT orderNum 
+            FROM orderList 
+            WHERE orderState = 4 AND TRUNC(SYSDATE - orderStateDate) &gt;= 5
+        )
+   </update>
+
+</mapper>

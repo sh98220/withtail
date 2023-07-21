@@ -1,0 +1,298 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="myPage">
+	<select id="listMyPages" parameterType="com.sp.withtail.myPage.MyPage" resultType="com.sp.withtail.myPage.MyPage">
+		SELECT petName, breed, gender, whichPet, petsImageFilename, num
+		FROM animal
+		WHERE userId = #{userId}
+		ORDER BY num DESC
+	</select>
+	
+	
+	
+	<select id="readPet" parameterType="Long" resultType="com.sp.withtail.myPage.MyPage">
+		SELECT num, petName, breed, gender, whichPet, petsImageFilename, weight, TO_CHAR(birth, 'YYYY"년"MM"월"DD"일" DY"요일"') AS birth,
+		        TO_CHAR(birth, 'YYYY-MM-DD') AS birth2
+		FROM animal
+		WHERE num = ${num}
+	</select>
+	
+	<delete id="deletePet" parameterType="Long"> 
+		DELETE FROM animal WHERE num = #{num}
+	</delete>
+	
+	<select id="dataCount" parameterType="String" resultType="Integer">
+		SELECT NVL(COUNT(*), 0)
+		FROM animal
+		WHERE userId = #{userId}
+	</select>
+	
+	<update id="petEdit" parameterType="com.sp.withtail.myPage.MyPage">
+		UPDATE animal SET petName=#{petName} , breed=#{breed}, gender=#{gender}, petsImageFilename= #{petsImageFilename, jdbcType=VARCHAR}, birth=#{birth}, weight=#{weight}
+		WHERE num =#{num}
+	</update>
+	
+	<select id="listDelivery" parameterType="com.sp.withtail.myPage.MyPage" resultType="com.sp.withtail.myPage.MyPage">
+		SELECT addNum, userId, addr1, addr2, zip, tel, memo, addDef, addName
+		FROM address
+		WHERE userId = #{userId}
+		ORDER BY addDef DESC
+	</select>
+	
+	<insert id="insertAdd" parameterType="com.sp.withtail.myPage.MyPage">
+		INSERT INTO address(addNum, userId, addr1, addr2, zip, tel, memo, addDef, addName)
+		VALUES (address_seq.NEXTVAL, #{userId}, #{addr1},#{addr2},#{zip},#{tel},#{memo},#{addDef},#{addName})
+	</insert>
+	
+	<select id="readAdd" parameterType="Long" resultType="com.sp.withtail.myPage.MyPage">
+		SELECT addNum, userId, addr1, addr2, zip, tel, memo, addDef, addName
+		FROM address
+		WHERE addNum = #{addNum}
+	</select>
+	
+	<update id="updateAdd" parameterType="com.sp.withtail.myPage.MyPage">
+		UPDATE address SET addr1=#{addr1}, addr2=#{addr2}, zip=#{zip}, tel=#{tel}, memo=#{memo}, addDef=#{addDef}, addName=#{addName}
+		WHERE addNum = #{addNum}
+	</update>
+	
+	<update id="basicAddressClear" parameterType="String">
+		UPDATE address SET addDef = 0 WHERE userId = #{userId}
+	</update>
+	
+	<delete id="deleteAdd" parameterType="Long">
+		DELETE FROM address WHERE addNum = #{addNum}
+	</delete>
+	
+	<select id="addDataCount" parameterType="String" resultType="Integer">
+		SELECT NVL(COUNT(*), 0)
+		FROM address
+		WHERE userId = #{userId}
+	</select>
+	
+	<select id="readProfile" parameterType="String" resultType="com.sp.withtail.myPage.MyPage">
+		SELECT num, userId, userName, nickname, email, enabled, userPwd, regDate, TO_CHAR(regDate + 7, 'YYYY-MM-DD') AS couponEnd
+		FROM member1
+		WHERE userId = #{userId}
+	</select>
+	
+	<update id="updateProfileName" parameterType="com.sp.withtail.myPage.MyPage">
+		UPDATE member1 SET userName=#{userName}, nickName=#{nickName}, email=#{email}
+		WHERE userId = #{userId}
+	</update>
+	
+	<update id="updatePwd" parameterType="com.sp.withtail.myPage.MyPage">
+		UPDATE member1 SET userPwd = #{userPwd}
+		WHERE userId = #{userId}
+	</update>
+	
+	<update id="updateEnabled" parameterType="com.sp.withtail.myPage.MyPage">
+		update member1 set enabled=0 where userId=#{userId}
+	</update>
+		
+	<insert id="insertMemberState" parameterType="com.sp.withtail.myPage.MyPage">
+		INSERT INTO memberState(stateNum, userId, stateCode, memo, stRegDate)
+		VALUES (memberState_seq.NEXTVAL, #{userId}, 8, '회원탈퇴', SYSDATE)
+	</insert>
+	
+	<select id="listCoupon" parameterType="com.sp.withtail.myPage.MyPage" resultType="com.sp.withtail.myPage.MyPage">
+		SELECT c.couponNum, userId, used, startDate, endDate, couponName, couponPrice, couponMinPrice , TO_CHAR(endDate, 'YYYY. MM. DD AM HH:MI:SS') AS endDate2, couponCategory
+		FROM coupon c
+		JOIN memberCoupon m ON c.couponNum = m.couponNum
+		WHERE userId = #{userId}
+	</select>
+	
+	<select id="couponDataCount" parameterType="String" resultType="Integer">
+		SELECT NVL(COUNT(*), 0)
+		FROM coupon c
+		JOIN memberCoupon m ON c.couponNum = m.couponNum
+		WHERE userId = #{userId}
+	</select>
+	
+	<select id="couponUnusedDataCount" parameterType="String" resultType="Integer">
+		SELECT NVL(COUNT(*), 0)
+		FROM coupon c
+		JOIN memberCoupon m ON c.couponNum = m.couponNum
+		WHERE userId = #{userId} AND used = 0
+	</select>
+
+	<select id="listOrder" parameterType="com.sp.withtail.myPage.MyPage" resultType="com.sp.withtail.myPage.MyPage">
+		SELECT ol.orderNum, purchaseMoney,count, itemName, madeBy, mainImage,o2.option2Name, o22.option2Name AS option2Name2, TO_CHAR(purchaseDate, 'YYYY"년 "MM"월 "DD"일" DY"요일"') purchaseDate,orderState, salePrice
+		,i.itemNum, o2.option2Num, o22.option2Num AS option2Num2, od.orderDetailNum, NVL(reviewWrite, 0) reviewWrite
+		FROM orderList ol
+		JOIN orderDetail OD ON ol.orderNum = od.orderNum
+		JOIN item i ON i.itemNum = od.itemNum
+		LEFT OUTER JOIN option2 o2 ON o2.option2Num = od.option2Num
+		LEFT OUTER JOIN option2 o22 ON o22.option2Num = od.option2Num2
+        LEFT OUTER JOIN (
+			SELECT orderDetailNum, 1 reviewWrite
+			FROM review
+            WHERE userId = #{userId}
+		) r ON od.orderDetailNum = r.orderDetailNum
+	    WHERE userId = #{userId}
+    	ORDER BY ol.orderNum DESC
+	</select>
+	
+	<select id="orderDataCount" parameterType="String" resultType="Integer">
+		SELECT NVL(COUNT(*),0)
+		FROM orderList
+		WHERE userId = #{usreId}		
+	</select>
+	
+	<select id="readOrderList" parameterType="Long" resultType="com.sp.withtail.myPage.MyPage">				       
+       
+    SELECT m.userId, ol.purchaseDate, ol.orderNum, tel, zip, addr1, addr2, memo, orderName, orderState, totalOriPrice, deliveryCharge,usedPoint, usedCoupon,
+		       SUM((od.price - NVL(od.salePrice, 0)) * od.count) AS total_discount, totalPurchasePrice, (totalPurchasePrice * 0.01) savePoint,  TO_CHAR(orderStateDate, 'YYYY-MM-DD HH24:MI:SS') orderStateDate
+               , companyName, invoiceNumber, NVL(o2.extraPrice,0) AS extraPrice, (totalOriPrice + NVL(o2.extraPrice,0) +  NVL(o22.extraPrice,0)) AS totalPurchasePrice1 , cardName , o2.extraPrice, o22.extraPrice
+    	FROM member1 m
+		JOIN orderList ol ON ol.userId = m.userId
+		JOIN orderAddress a ON ol.orderNum = a.orderNum
+		JOIN orderDetail OD ON ol.orderNum = od.orderNum
+        LEFT OUTER JOIN delivery d ON d.orderNum = ol.orderNum
+        LEFT OUTER JOIN deliveryCompany dc ON dc.companyNum = d.companyNum
+        LEFT OUTER JOIN option2 o2 ON o2.option2Num = od.option2Num
+		LEFT OUTER JOIN option2 o22 ON o22.option2Num = od.option2Num2
+        LEFT OUTER JOIN payDetail pd ON pd.orderNum = ol.orderNum
+		WHERE od.orderNum=#{orderNum}
+		GROUP BY m.userId, ol.purchaseDate, ol.orderNum, tel, zip, addr1, addr2, memo, orderName, orderState,totalOriPrice,deliveryCharge,usedPoint, usedCoupon,totalPurchasePrice,
+                orderStateDate , companyName, invoiceNumber,o2.extraPrice, (totalOriPrice + NVL(o2.extraPrice,0) +  NVL(o22.extraPrice,0)), cardName, o2.extraPrice, o22.extraPrice
+    
+	</select>
+	
+	<update id="updateOrderState" parameterType="Long">
+		update orderList set orderState=5, orderStateDate = SYSDATE where orderNum=#{orderNum}
+	</update>
+	
+	<update id="updateOrderCancel" parameterType="Long">
+		update orderList set orderState=6, orderStateDate = SYSDATE where orderNum=#{orderNum}
+	</update>
+	
+	<update id="updateOrderRefund" parameterType="Long">
+		update orderList set orderState=7, orderStateDate = SYSDATE where orderNum=#{orderNum}
+	</update>
+	<select id="listNumOrder" parameterType="Long" resultType="com.sp.withtail.myPage.MyPage">
+		SELECT ol.orderNum, m.userId, purchaseMoney,count, itemName, madeBy, mainImage,o2.option2Name, o22.option2Name AS option2Name2,
+			 TO_CHAR(purchaseDate, 'YYYY"년"MM"월"DD"일" DY"요일"') purchaseDate,orderState,price , salePrice, i.itemNum
+		FROM member1 m
+		JOIN orderList ol ON m.userId = ol.userId
+		JOIN orderDetail OD ON ol.orderNum = od.orderNum
+		JOIN item i ON i.itemNum = od.itemNum
+		LEFT OUTER JOIN option2 o2 ON o2.option2Num = od.option2Num
+		LEFT OUTER JOIN option2 o22 ON o22.option2Num = od.option2Num2
+		WHERE od.orderNum = #{orderNum}
+	</select>
+	
+	<select id="listPoint" parameterType="String" resultType="com.sp.withtail.myPage.MyPage">
+		SELECT pointNum, userId, pointChk, amount, balance,pointRegDate
+		FROM point
+		WHERE userId=#{userId}
+		ORDER BY pointNum DESC
+	</select>
+	
+	<select id="pointDataCount" parameterType="String" resultType="Integer">
+		SELECT NVL(COUNT(*), 0)
+		FROM point
+		WHERE userId = #{userId}
+	</select>
+	
+	<select id="listFavorite" parameterType="String" resultType="com.sp.withtail.myPage.MyPage">
+		SELECT ij.userId, i.itemNum, itemName, madeBy, mainImage, itemPrice, TRUNC((1-(discount/100))*itemPrice) AS salePrice1, ROUND(avg(star)) as star
+		FROM itemJjim ij
+		JOIN item i ON ij.itemNum = i.itemNum
+		LEFT OUTER JOIN review r ON r.itemNum = i.itemNum
+        WHERE ij.userId = #{userId}
+        GROUP BY ij.userId, i.itemNum, itemName, madeBy, mainImage, itemPrice, TRUNC((1-(discount/100))*itemPrice)
+		
+	</select>
+	
+	<select id="favoriteDataCount" parameterType="String" resultType="Integer">
+		SELECT NVL(COUNT(*), 0)
+		FROM itemJjim
+		WHERE userId = #{userId}
+	</select>
+	
+	<delete id="deleteFavorite" parameterType="Long">
+		DELETE FROM itemJjim WHERE itemNum = #{itemNum}
+	</delete>
+	
+	<insert id="insertCart" parameterType="com.sp.withtail.myPage.MyPage">
+		INSERT INTO cart(cartNum, option2Num, itemNum, userId, quantity, cartRegDate, option2Num2)
+		VALUES(cart_seq.nextval,#{option2Num, jdbcType=INTEGER},#{itemNum},#{userId},1,SYSDATE, #{option2Num2, jdbcType=INTEGER})
+	</insert>
+	
+	<update id="increaseCart" parameterType="com.sp.withtail.myPage.MyPage">
+		UPDATE cart SET quantity = quantity + 1, cartRegdate = SYSDATE
+		WHERE userId = #{userId} AND itemNum = #{itemNum} 
+		<if test="option2Num!=null">
+		  AND option2Num = #{option2Num}
+		</if>
+		<if test="option2Num2!=null">
+		  AND option2Num2 = #{option2Num2}
+		</if>
+	</update>	
+	
+	<select id="myCartCount" parameterType="com.sp.withtail.myPage.MyPage" resultType="Integer">
+		SELECT COUNT(*)
+		FROM cart
+		WHERE userId = #{userId} AND itemNum = #{itemNum} 
+		<if test="option2Num!=null">
+		  AND option2Num = #{option2Num}
+		</if>
+		<if test="option2Num2!=null">
+		  AND option2Num2 = #{option2Num2}
+		</if>
+	</select>
+	
+	<select id="seq" resultType="Long">
+		SELECT review_seq.NEXTVAL FROM dual 
+	</select>
+	
+	<insert id="insertReview" parameterType="com.sp.withtail.myPage.MyPage">
+		INSERT INTO review(rvNum, orderDetailNum, rvContent, star, regDate,itemNum, userId)
+		VALUES(#{rvNum}, #{orderDetailNum}, #{rvContent}, #{star}, SYSDATE, #{itemNum}, #{userId})
+	</insert>
+	
+	<insert id="insertReviewPhoto" parameterType="com.sp.withtail.myPage.MyPage">
+		INSERT INTO reviewPhoto(rvPhotoNum, rvNum, saveName)
+			VALUES(reviewPhoto_seq.NEXTVAL, #{rvNum}, #{saveName})
+	</insert>
+	
+	<select id="readReviewItem" parameterType="Long" resultType="com.sp.withtail.myPage.MyPage">
+		SELECT ol.orderNum, itemName, madeBy, mainImage,o2.option2Name, o22.option2Name AS option2Name2,od.orderDetailNum, i.itemNum
+		FROM member1 m
+		JOIN orderList ol ON m.userId = ol.userId
+		JOIN orderDetail OD ON ol.orderNum = od.orderNum
+		JOIN item i ON i.itemNum = od.itemNum
+		LEFT OUTER JOIN option2 o2 ON o2.option2Num = od.option2Num
+		LEFT OUTER JOIN option2 o22 ON o22.option2Num = od.option2Num2
+		WHERE od.orderdetailNum = #{orderDetailNum}
+	</select>
+
+	<select id="readPoint" parameterType="String" resultType="com.sp.withtail.myPage.MyPage">
+		SELECT * FROM point where userId = #{userId}
+        order by pointNum DESC
+        FETCH FIRST 1 ROWS ONLY
+	</select>
+
+	<insert id="getPoint" parameterType="com.sp.withtail.myPage.MyPage">
+		INSERT INTO point(pointNum, userId, pointChk, amount, balance, pointRegDate)
+		VALUES(point_seq.nextval ,#{userId},0, #{amount}, #{balance}, SYSDATE)
+	</insert>
+	
+	<update id="memberEdit" parameterType="com.sp.withtail.myPage.MyPage">
+		UPDATE member1 SET point = #{balance}
+		WHERE userId = #{userId}
+	</update>
+	
+	<select id="readMember" parameterType="String" resultType="com.sp.withtail.myPage.MyPage">
+		SELECT point
+		FROM member1
+		WHERE userId = #{userId}
+	</select>
+	
+	
+	
+	
+	
+</mapper>
+

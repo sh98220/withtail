@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="couponManage">
+  
+  <sql id="where-list">
+		<if test="condition=='couponNum' ">
+			INSTR(couponNum, #{keyword}) &gt; 0
+		</if>
+		<if test="condition=='couponName' ">
+			INSTR(couponName, #{keyword}) &gt; 0
+		</if>
+		<if test="condition=='userId' ">
+			INSTR(userId, #{keyword}) &gt; 0
+		</if>
+	</sql>   
+	
+	<select id="couponSeq" resultType="long">
+	    SELECT coupon_seq.NEXTVAL from dual
+	</select>
+
+
+    <insert id="insertCoupon" parameterType="com.sp.withtail.admin.couponManage.CouponManage">
+        INSERT INTO coupon(couponNum, startDate, endDate, couponName, 
+                         couponPrice, couponCategory, couponMinPrice)
+		        VALUES(#{couponNum},
+		        TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS'),
+		        TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS'),
+		        #{couponName},#{couponPrice},
+		        #{couponCategory},#{couponMinPrice})
+    </insert>
+    
+    <update id="updateCoupon" parameterType="com.sp.withtail.admin.couponManage.CouponManage">
+       UPDATE coupon SET startDate=TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS'), 
+                         endDate=TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS'), 
+                         couponName=#{couponName}, 
+                         couponPrice=#{couponPrice}, couponCategory=#{couponCategory}, 
+                         couponMinPrice=#{couponMinPrice}
+                         WHERE couponNum = #{couponNum}                   
+    </update>
+    
+    <delete id="deleteCoupon" parameterType="Long">
+       DELETE FROM coupon WHERE couponNum = #{couponNum}
+    </delete>
+    
+    
+    <select id="readCoupon" parameterType="long" resultType="com.sp.withtail.admin.couponManage.CouponManage">
+       SELECT couponNum, startDate, endDate, couponName, couponPrice, couponCategory, couponMinPrice
+       FROM coupon
+       WHERE couponNum = #{couponNum}
+    </select>
+    
+    <select id="dataCount" parameterType="map" resultType="Integer">
+       SELECT NVL(COUNT(*), 0)
+       FROM coupon
+       <where>
+			<if test="keyword != null and keyword != ''">
+				<include refid="where-list"/>
+			</if>
+		</where>
+    </select>
+    
+    <select id="listCoupon" parameterType="map" resultType="com.sp.withtail.admin.couponManage.CouponManage">
+       SELECT couponNum, startDate, endDate, couponName, couponPrice, couponCategory, couponMinPrice 
+       FROM coupon
+       <where>
+			<if test="keyword != null and keyword != ''">
+				<include refid="where-list"/>
+			</if>
+		</where>
+		ORDER BY couponNum DESC
+		OFFSET #{offset} ROWS FETCH FIRST #{size} ROWS ONLY
+    </select>
+    
+   <select id="allMember" parameterType="long" resultType="com.sp.withtail.admin.couponManage.CouponManage">
+		SELECT m2.userId, m2.userName, m2.num memberNum, couponNum, used
+        from member1 m2
+        join (
+           SELECT m.userId, m.num memberNum, couponNum, used
+		FROM member1 m
+		FULL OUTER JOIN membercoupon c ON m.userId = c.userId
+		WHERE couponNum = #{couponNum}
+        ) cm on m2.userId = cm.userId
+        order by m2.num asc
+    </select>
+   
+    
+   <select id="nocouponMember" parameterType="long" resultType="com.sp.withtail.admin.couponManage.CouponManage">
+		SELECT m2.userId, m2.userName, m2.num memberNum, couponNum
+        from member1 m2
+        Full outer join (
+           SELECT m.userId, m.num memberNum, couponNum
+		FROM member1 m
+		FULL OUTER JOIN membercoupon c ON m.userId = c.userId
+		WHERE couponNum = #{couponNum}
+        ) cm on m2.userId = cm.userId
+        where couponNum is null
+        order by m2.num asc
+    </select>
+     
+    <insert id="insertToMember" parameterType="map">
+        INSERT INTO membercoupon(couponNum, userId, used) VALUES(#{couponNum}, #{userId}, 0)
+    </insert>
+    
+    <delete id="deleteDoneCoupon" parameterType="map">
+        DELETE FROM coupon 
+        WHERE couponNum IN (
+            SELECT couponNum 
+            FROM coupon
+            WHERE endDate &gt; SYSDATE
+        )
+    </delete>
+    
+</mapper>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="search">
+	<select id="searchList" parameterType="map" resultType="com.sp.withtail.ranking.Ranking">
+	
+    SELECT i.itemNum, i.ctNum, itemName, i.itemPrice,  i.itemPrice * (100-NVL(discount,0)) * 0.01 finalPrice,
+           discount, mainImage
+    FROM item i
+    WHERE showNotice = 0 AND INSTR(itemName, TRIM(#{keyword})) > 0
+    GROUP BY i.itemNum, i.ctNum, itemName, i.itemPrice,  i.itemPrice * (100-NVL(discount,0)) * 0.01, discount, mainImage
+    ORDER BY i.itemNum DESC
+ 
+	</select>
+	
+	<select id="dataCount" parameterType="map" resultType="Integer">
+		SELECT COUNT(itemNum)
+		FROM item
+		WHERE showNotice = 0 AND INSTR(itemName, TRIM(#{keyword})) > 0
+	</select>
+</mapper>

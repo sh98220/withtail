@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="reviewManage">
+
+	<sql id="where-list">
+	<if test="condition=='content'">
+		DBMS_LOB.INSTR(rvContent, #{keyword}) &gt; 0 
+	</if>
+	<if test="condition=='userName'">
+		INSTR(userName, #{keyword}) = 1
+	</if>
+	<if test="condition=='userId'">
+		INSTR(r.userId, #{keyword}) = 1
+	</if>
+	<if test="condition=='regDate'">
+		( TO_CHAR(r.regDate, 'YYYY-MM-DD') = #{keyword}
+			OR TO_CHAR(r.regDate, 'YYYYMMDD') = #{keyword} )
+	</if>
+</sql>
+	<!-- 리뷰 개수 -->
+	<select id="dataCountbefore" parameterType="map" resultType="Integer">
+		SELECT NVL(COUNT(*), 0)
+		FROM review r
+		JOIN member1 m ON r.userId=m.userId
+		<where>
+			<if test="keyword!=null and keyword!='' ">
+				<include refid="where-list"/>
+			</if>
+			AND replyContent is null
+		</where>   
+	</select>
+	
+	<select id="dataCountcomplete" parameterType="map" resultType="Integer">
+		SELECT NVL(COUNT(*), 0)
+		FROM review r
+		JOIN member1 m ON r.userId=m.userId
+		<where>
+			<if test="keyword!=null and keyword!='' ">
+				<include refid="where-list"/>
+			</if>
+				AND replyContent is not null
+		</where>   
+	</select>
+	
+	<!-- 리뷰 리스트 -->
+	<select id="listReviewbefore" parameterType="map" resultType="com.sp.withtail.admin.reviewManage.ReviewManage">
+		select rvNum,orderDetailNum ,rvContent,star,TO_CHAR(r.regDate,'YYYY-MM-DD')regDate,r.itemNum,r.userId,
+        itemName, mainImage, madeby ,userName
+        from review r
+        join item i on r.itemNum=i.itemNum
+        join member1 m on r.userId=m.userId
+        <where>
+			<if test="keyword!=null and keyword!='' ">
+				<include refid="where-list"/>
+			</if>
+				AND replyContent is null
+		</where>   
+        ORDER BY rvNum DESC
+		OFFSET #{offset} ROWS FETCH FIRST #{size} ROWS ONLY
+	</select>
+	
+	<select id="listReviewcomplete" parameterType="map" resultType="com.sp.withtail.admin.reviewManage.ReviewManage">
+		select rvNum,orderDetailNum ,rvContent,star,TO_CHAR(r.regDate,'YYYY-MM-DD')regDate,r.itemNum,r.userId,
+        itemName, mainImage, madeby ,userName
+        from review r
+        join item i on r.itemNum=i.itemNum
+        join member1 m on r.userId=m.userId
+        <where>
+			<if test="keyword!=null and keyword!='' ">
+				<include refid="where-list"/>
+			</if>
+			AND replyContent is not null
+		</where>   
+        ORDER BY rvNum DESC
+		OFFSET #{offset} ROWS FETCH FIRST #{size} ROWS ONLY
+	</select>
+	
+	
+
+	 
+	 <select id="readReview" parameterType="Long" resultType="com.sp.withtail.admin.reviewManage.ReviewManage">
+	    select o2.option2Name option1 ,op2.option2Name option2 ,r.rvNum,od.orderDetailNum ,rvContent,star,TO_CHAR(r.regDate,'YYYY-MM-DD')regDate,r.itemNum,r.userId,
+        replyContent,TO_CHAR(replyDate,'YYYY-MM-DD')replyDate,
+        itemName, mainImage, madeby,m.userName,
+        saveName,replyId,m1.userName replyName
+        from review r
+        join item i on r.itemNum=i.itemNum
+        join member1 m on r.userId=m.userId
+        left outer join reviewPhoto rp on r.rvNum=rp.rvNum
+        LEFT OUTER JOIN member1 m1 ON r.replyId = m1.userId
+        left outer join orderdetail od on i.itemNum = od.itemNum
+        left outer join option2 o2 on od.option2Num = o2.option2Num
+        left outer JOIN option2 op2 ON od.option2Num2 = op2.option2Num
+        where r.rvNum= #{rvNum}
+        FETCH FIRST 1 ROWS ONLY
+	 </select>
+	 
+	 	<!-- 글보기 
+	<select id="readReview" parameterType="Long" resultType="com.sp.withtail.admin.reviewManage.ReviewManage">
+		select r.rvNum,orderDetailNum ,rvContent,star,TO_CHAR(r.regDate,'YYYY-MM-DD')regDate,r.itemNum,r.userId,
+        replyContent,TO_CHAR(replyDate,'YYYY-MM-DD')replyDate,
+        itemName, mainImage, madeby,m.userName,
+        saveName,replyId,m1.userName replyName
+        from review r
+        join item i on r.itemNum=i.itemNum
+        join member1 m on r.userId=m.userId
+        left outer join reviewPhoto rp on r.rvNum=rp.rvNum
+        LEFT OUTER JOIN member1 m1 ON r.replyId = m1.userId
+        where r.rvNum= #{rvNum}
+        FETCH FIRST 1 ROWS ONLY
+	</select>
+	 -->
+	 
+	<select id="photolist" parameterType="Long" resultType="com.sp.withtail.admin.reviewManage.ReviewManage">
+		select saveName, rvPhotoNum, rvNum
+		from reviewPhoto
+		where rvNum = #{rvNum}
+	</select>
+	
+	<update id="answerReview" parameterType="com.sp.withtail.admin.reviewManage.ReviewManage">
+		UPDATE review SET replyId = #{replyId}, replyContent = #{replyContent}, replyDate = SYSDATE
+		WHERE rvNum = #{rvNum}
+	</update>
+	
+	<update id="deleteAnswer" parameterType="Long">
+		UPDATE review SET replyId = NULL, replyContent = NULL, replyDate = NULL
+		WHERE rvNum = #{rvNum}
+	</update>
+	
+	<delete id="deleteReview" parameterType="Long">
+		DELETE FROM review WHERE rvNum = #{rvNum}
+	</delete>
+
+</mapper>

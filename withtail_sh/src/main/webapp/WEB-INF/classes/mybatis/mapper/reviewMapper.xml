@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="review">
+	<!-- 리뷰 쓰기 -->
+	<insert id="insertReview" parameterType="com.sp.withtail.review.Review">
+	
+	</insert>
+	
+	<!-- 리뷰 개수 -->
+	<select id="dataCount" parameterType="map" resultType="Integer">
+		SELECT NVL(COUNT(*), 0) rvCount
+		FROM review r
+		JOIN item i ON r.itemNum = i.itemNum
+		WHERE i.itemNum = #{itemNum}
+	</select>
+	
+	<!-- 리뷰 리스트 -->
+	<select id="listReview" parameterType="map" resultType="com.sp.withtail.review.Review">
+		SELECT DISTINCT r.rvNum, TO_CHAR(r.rvContent) rvContent, r.star, r.itemNum,
+		    r.userId, m.userName, m.nickName, i.itemName, saveName,
+		    TO_CHAR(r.regDate,'YYYY-MM-DD') regDate,
+		    op.option2Num, op.option2Name,
+		    op2.option2Num AS option2Num2, op2.option2Name AS option2Name2,
+			NVL(rvLikeCount, 0) rvLikeCount,
+		    r.replyId, r.replyContent, r.replyDate, rm.nickName AS replyName
+		FROM review r
+		JOIN item i ON r.itemNum = i.itemNum
+		JOIN member1 m ON r.userId = m.userId
+		JOIN orderDetail od ON r.orderDetailNum = od.orderDetailNum
+		LEFT OUTER JOIN option2 op ON NVL(od.option2Num, 0) = NVL(op.option2Num, 0)
+		LEFT OUTER JOIN option2 op2 ON NVL(od.option2Num2, 0) = NVL(op2.option2Num, 0)
+		LEFT OUTER JOIN member1 rm ON r.replyId = rm.userId
+		LEFT OUTER JOIN (
+		    SELECT rvNum, LISTAGG(saveName, ',') WITHIN GROUP(ORDER BY rvPhotoNum) saveName
+		    FROM reviewPhoto
+		    GROUP BY rvNum
+		) rp ON r.rvNum = rp.rvNum
+		LEFT OUTER JOIN (
+			SELECT reviewNum, COUNT(*) rvLikeCount
+			FROM reviewLike
+			GROUP BY reviewNum
+		) rl ON r.rvNum = rl.reviewNum
+		WHERE i.itemNum = #{itemNum}
+		ORDER BY rvNum DESC
+		OFFSET #{offset} ROWS FETCH FIRST #{size} ROWS ONLY
+	</select>
+	
+	<!-- 리뷰 이미지 리스트 -->
+	<select id="listReviewFile" parameterType="long" resultType="com.sp.withtail.review.Review">
+		SELECT rvPhotoNum, rvNum, saveName
+		FROM reviewPhoto
+		WHERE rvNum = #{rvNum}
+	</select>
+	
+	<!-- 리뷰 상세 -->
+	<select id="readReview" parameterType="Long" resultType="com.sp.withtail.review.Review">
+		SELECT DISTINCT r.rvNum, TO_CHAR(r.rvContent) rvContent, r.star, r.itemNum, 
+		    r.userId, m.userName, m.nickName, i.itemName, saveName,
+		    TO_CHAR(r.regDate,'YYYY-MM-DD') regDate,
+			NVL(rvLikeCount, 0) rvLikeCount
+		FROM review r
+		JOIN item i ON r.itemNum = i.itemNum
+		JOIN member1 m ON r.userId = m.userId
+		LEFT OUTER JOIN (
+		    SELECT rvNum, LISTAGG(saveName, ',') WITHIN GROUP(ORDER BY rvPhotoNum) saveName
+		    FROM reviewPhoto
+		    GROUP BY rvNum
+		) rp ON r.rvNum = rp.rvNum
+		LEFT OUTER JOIN (
+			SELECT reviewNum, COUNT(*) rvLikeCount
+			FROM reviewLike
+			GROUP BY reviewNum
+		) rl ON r.rvNum = rl.reviewNum
+		WHERE r.rvNum = #{rvNum}
+	</select>
+	
+	<!-- 리뷰 좋아요 추가 -->
+	<insert id="insertReviewLike" parameterType="map">
+		INSERT INTO reviewLike(reviewNum, userId)
+			VALUES (#{rvNum}, #{userId})
+	</insert>
+	
+	<!-- 리뷰 좋아요 삭제 -->
+	<insert id="deleteReviewLike" parameterType="map">
+		DELETE FROM reviewLike
+		WHERE reviewNum = #{rvNum} AND userId = #{userId}
+	</insert>
+	
+	<!-- 리뷰 좋아요 개수 -->
+	<select id="reviewLikeCount" parameterType="map" resultType="map">
+		SELECT NVL(COUNT(*), 0) rvLikeCount 
+		FROM reviewLike WHERE reviewNum=#{rvNum}
+	</select>
+	
+	<!-- 리뷰 좋아요 여부 -->
+	<select id="userRvLiked" parameterType="map" resultType="com.sp.withtail.review.Review">
+		SELECT reviewNum, userId 
+		FROM reviewLike 
+		WHERE reviewNum = #{rvNum} AND userId = #{userId}
+	</select>
+	
+	<!-- 댓글 리스트 -->
+	<select id="listReply" parameterType="map" resultType="com.sp.withtail.review.Review">
+	
+	</select>
+	
+	<!-- 댓글 개수 -->
+	<select id="replyCount" parameterType="map" resultType="Integer">
+		SELECT NVL(COUNT(*), 0) rvReplyCount
+		FROM review
+		WHERE reviewNum = #{rvNum}
+	</select>
+	
+	<!-- 리뷰 평균 -->
+	<select id="readAvgStar" parameterType="long" resultType="Double">
+		SELECT ROUND(NVL(AVG(star),0),1) AS avgStar
+		FROM review r
+		LEFT OUTER JOIN item i ON i.itemNum = r.itemNum
+		WHERE i.itemNum = #{itemNum}
+	</select>
+
+</mapper>

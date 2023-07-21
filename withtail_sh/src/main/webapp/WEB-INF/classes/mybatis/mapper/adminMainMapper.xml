@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="adminMain">
+	
+	
+	<select id="todayNewMember" resultType="map">
+		select NVL(COUNT(*),0)count 
+		FROM member1 WHERE  TO_CHAR(regDate, 'YYYY-MM-DD') =  TO_CHAR(SYSDATE, 'YYYY-MM-DD')
+	</select>
+	
+	<select id="totalMember" resultType="map">
+		select NVL(COUNT(*),0)count
+		FROM member1
+	</select>
+	
+	<!-- 7일간 일별 판매 금액 -->
+	<select id="weekSales" parameterType="String" resultType="map">
+		SELECT TO_CHAR(TO_DATE(#{date}, 'YYYY-MM-DD')-6, 'YYYY-MM-DD') orderDate, 
+			NVL(SUM(totalPurchasePrice),0) totalMoney 
+		FROM orderList 
+		WHERE TO_CHAR(purchaseDate, 'YYYY-MM-DD') = TO_CHAR(TO_DATE(#{date}, 'YYYY-MM-DD')-6, 'YYYY-MM-DD')
+		AND (orderstate != 6 or orderstate != 7 or orderstate != 8) 
+       
+        UNION ALL
+		  
+		SELECT TO_CHAR(TO_DATE(#{date}, 'YYYY-MM-DD')-5, 'YYYY-MM-DD') orderDate, 
+				NVL(SUM(totalPurchasePrice),0) totalMoney 
+		FROM orderList
+		WHERE TO_CHAR(purchaseDate, 'YYYY-MM-DD') = TO_CHAR(TO_DATE(#{date}, 'YYYY-MM-DD')-5, 'YYYY-MM-DD') 
+		AND (orderstate != 6 or orderstate != 7 or orderstate != 8) 
+		 
+		UNION ALL
+		  
+		SELECT TO_CHAR(TO_DATE(#{date}, 'YYYY-MM-DD')-4, 'YYYY-MM-DD') orderDate, 
+				NVL(SUM(totalPurchasePrice),0) totalMoney 
+		FROM orderList
+		WHERE TO_CHAR(purchaseDate, 'YYYY-MM-DD') = TO_CHAR(TO_DATE(#{date}, 'YYYY-MM-DD')-4, 'YYYY-MM-DD')  
+		AND (orderstate != 6 or orderstate != 7 or orderstate != 8)
+		
+		UNION ALL
+		  
+		SELECT TO_CHAR(TO_DATE(#{date}, 'YYYY-MM-DD')-3, 'YYYY-MM-DD') orderDate, 
+				NVL(SUM(totalPurchasePrice),0) totalMoney 
+		FROM orderList
+		WHERE TO_CHAR(purchaseDate, 'YYYY-MM-DD') = TO_CHAR(TO_DATE(#{date}, 'YYYY-MM-DD')-3, 'YYYY-MM-DD')  
+		AND (orderstate != 6 or orderstate != 7 or orderstate != 8)
+		
+		UNION ALL
+		  
+		SELECT TO_CHAR(TO_DATE(#{date}, 'YYYY-MM-DD')-2, 'YYYY-MM-DD') orderDate, 
+				NVL(SUM(totalPurchasePrice),0) totalMoney 
+		FROM orderList
+		WHERE TO_CHAR(purchaseDate, 'YYYY-MM-DD') = TO_CHAR(TO_DATE(#{date}, 'YYYY-MM-DD')-2, 'YYYY-MM-DD') 
+		AND (orderstate != 6 or orderstate != 7 or orderstate != 8)
+		
+		UNION ALL
+		  
+		SELECT TO_CHAR(TO_DATE(#{date}, 'YYYY-MM-DD')-1, 'YYYY-MM-DD') orderDate, 
+				NVL(SUM(totalPurchasePrice),0) totalMoney 
+		FROM orderList
+		WHERE TO_CHAR(purchaseDate, 'YYYY-MM-DD') = TO_CHAR(TO_DATE(#{date}, 'YYYY-MM-DD')-1, 'YYYY-MM-DD') 
+		AND (orderstate != 6 or orderstate != 7 or orderstate != 8)
+		
+		UNION ALL
+		  
+		SELECT #{date} orderDate, 
+				NVL(SUM(totalPurchasePrice),0) totalMoney 
+		FROM orderList 
+		WHERE TO_CHAR(purchaseDate, 'YYYY-MM-DD') =#{date}
+		AND (orderstate != 6 or orderstate != 7 or orderstate != 8)
+	</select>
+	
+	
+	
+	<!-- 7일간 일별 신규회원 수 -->
+	<select id="weekNewMember" parameterType="String" resultType="map">
+		SELECT TO_CHAR(TO_DATE(#{date}, 'YYYY-MM-DD')-6, 'YYYY-MM-DD') rDate, 
+			COUNT(*) totalMember 
+		FROM member1 
+		WHERE TO_CHAR(regDate, 'YYYY-MM-DD') = TO_CHAR(TO_DATE(#{date}, 'YYYY-MM-DD')-6, 'YYYY-MM-DD') 
+        
+        UNION ALL
+		  
+        SELECT TO_CHAR(TO_DATE(#{date}, 'YYYY-MM-DD')-5, 'YYYY-MM-DD') rDate, 
+            COUNT(*) totalMember 
+		FROM member1 
+		WHERE TO_CHAR(regDate, 'YYYY-MM-DD') = TO_CHAR(TO_DATE(#{date}, 'YYYY-MM-DD')-5, 'YYYY-MM-DD')  
+		  UNION ALL
+		  
+         SELECT TO_CHAR(TO_DATE(#{date}, 'YYYY-MM-DD')-4, 'YYYY-MM-DD') rDate, 
+			COUNT(*) totalMember 
+		FROM member1 
+		WHERE TO_CHAR(regDate, 'YYYY-MM-DD') = TO_CHAR(TO_DATE(#{date}, 'YYYY-MM-DD')-4, 'YYYY-MM-DD') 
+		  UNION ALL
+		  
+         SELECT TO_CHAR(TO_DATE(#{date}, 'YYYY-MM-DD')-3, 'YYYY-MM-DD') rDate, 
+			COUNT(*) totalMember 
+		FROM member1 
+		WHERE TO_CHAR(regDate, 'YYYY-MM-DD') = TO_CHAR(TO_DATE(#{date}, 'YYYY-MM-DD')-3, 'YYYY-MM-DD')  
+		  UNION ALL
+		  
+         SELECT TO_CHAR(TO_DATE(#{date}, 'YYYY-MM-DD')-2, 'YYYY-MM-DD') rDate, 
+			COUNT(*) totalMember 
+		FROM member1 
+		WHERE TO_CHAR(regDate, 'YYYY-MM-DD') = TO_CHAR(TO_DATE(#{date}, 'YYYY-MM-DD')-2, 'YYYY-MM-DD') 
+		  UNION ALL
+		  
+         SELECT TO_CHAR(TO_DATE(#{date}, 'YYYY-MM-DD')-1, 'YYYY-MM-DD') rDate, 
+			COUNT(*) totalMember 
+		FROM member1 
+		WHERE TO_CHAR(regDate, 'YYYY-MM-DD') = TO_CHAR(TO_DATE(#{date}, 'YYYY-MM-DD')-1, 'YYYY-MM-DD') 
+		  UNION ALL
+		  
+		SELECT #{date} rDate, 
+				COUNT(*) totalMember 
+		FROM member1 
+		WHERE TO_CHAR(regDate, 'YYYY-MM-DD') =#{date}
+	</select>
+
+	<!-- 판매통계(오늘) -->
+	<select id="todaySales" resultType="map">
+		SELECT  NVL(SUM(totalPurchasePrice),0) todaySales, COUNT(*) count
+        FROM orderList
+		WHERE  TO_CHAR(purchaseDate, 'YYYY-MM-DD') =  TO_CHAR(SYSDATE, 'YYYY-MM-DD')
+		AND (orderstate != 6 or orderstate != 7 or orderstate != 8)
+	</select>
+	
+	<!-- 판매통계(어제) -->
+	<select id="yesterDaySales" resultType="map">
+		SELECT  NVL(SUM(totalPurchasePrice),0) yesterDaySales, COUNT(*) count
+        FROM orderList
+		WHERE  TO_CHAR(purchaseDate, 'YYYY-MM-DD') =   TO_CHAR(TO_DATE(SYSDATE, 'YYYY-MM-DD')-1, 'YYYY-MM-DD')
+		AND (orderstate != 6 or orderstate != 7 or orderstate != 8) 
+	</select>
+	
+	<!-- 판매통계(이번달) -->
+	<select id="monthSales" resultType="map">
+		SELECT  NVL(SUM(totalPurchasePrice),0) monthSales, COUNT(*) count
+        FROM orderList
+        WHERE EXTRACT(MONTH FROM purchaseDate) = EXTRACT(MONTH FROM SYSDATE)
+        AND EXTRACT(YEAR FROM purchaseDate) = EXTRACT(YEAR FROM SYSDATE)
+        AND (orderstate != 6 or orderstate != 7 or orderstate != 8)
+	</select>
+	
+	<!-- 판매통계(전체) -->
+	<select id="totalSales" resultType="map">
+		SELECT  NVL(SUM(totalPurchasePrice),0) totalSales, COUNT(*) count
+        FROM orderList
+        where (orderstate != 6 or orderstate != 7 or orderstate != 8)
+	</select>
+	
+	<!-- 결제완료 -->
+	<select id="paymentCompleted" resultType="map">
+		SELECT COUNT(*) count, NVL(SUM(totalPurchasePrice),0) price
+		FROM orderList
+		WHERE orderState=1 AND TO_CHAR(orderstatedate, 'YYYY-MM-DD') =  TO_CHAR(SYSDATE, 'YYYY-MM-DD')
+	</select>
+
+	<!-- 배송준비중 -->
+	<select id="preparing" resultType="map">
+		SELECT COUNT(*) count, NVL(SUM(totalPurchasePrice),0) price
+		FROM orderList
+		WHERE orderState=2 AND TO_CHAR(orderstatedate, 'YYYY-MM-DD') =  TO_CHAR(SYSDATE, 'YYYY-MM-DD')
+	</select>	
+	
+	<!-- 배송중 -->	
+	<select id="inTransit" resultType="map">
+		SELECT COUNT(*) count, NVL(SUM(totalPurchasePrice),0) price
+		FROM orderList
+		WHERE orderState=3 AND TO_CHAR(orderstatedate, 'YYYY-MM-DD') =  TO_CHAR(SYSDATE, 'YYYY-MM-DD')
+	</select>
+
+	<!-- 배송완료 -->	
+	<select id="deliveryCompleted" resultType="map">
+		SELECT COUNT(*) count, NVL(SUM(totalPurchasePrice),0) price
+		FROM orderList
+		WHERE orderState=4 AND TO_CHAR(orderstatedate, 'YYYY-MM-DD') =  TO_CHAR(SYSDATE, 'YYYY-MM-DD')
+	</select>	
+	
+	<!-- 구매확정 -->	
+	<select id="orderComplete" resultType="map">
+		SELECT COUNT(*) count, NVL(SUM(totalPurchasePrice),0) price
+		FROM orderList
+		WHERE orderState=5 AND TO_CHAR(orderstatedate, 'YYYY-MM-DD') =  TO_CHAR(SYSDATE, 'YYYY-MM-DD')
+	</select>	
+	
+</mapper>

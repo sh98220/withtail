@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cart">
+	<select id = "listCart" parameterType="map" resultType="com.sp.withtail.cart.Cart">
+        SELECT userId, ct.quantity, 
+			ct.cartNum, ct.option2Num, op1.option2Name, ct.option2Num2, op2.option2Name option2Name2,
+            NVL(itemPoint, 0) itemPoint, mainImage, deliveryFee,
+			ct.itemNum, itemName, i.itemPrice + NVL(op2.extraPrice,0) itemPrice, (i.itemPrice +  NVL(op2.extraPrice,0)) * (NVL(discount,0) * 0.01) disPrice,
+            (i.itemPrice + NVL(op2.extraPrice,0)) * (100-NVL(discount,0)) * 0.01 finalPrice, NVL(totalStock, 0) totalStock, discount
+		FROM cart ct
+		JOIN item i ON ct.itemNum = i.itemNum 
+		LEFT JOIN option2 op1 ON ct.option2Num = op1.option2Num
+		LEFT JOIN option2 op2 ON ct.option2Num2 = op2.option2Num
+        LEFT JOIN itemStock it ON ct.itemNum = it.itemNum
+        AND NVL(it.option2Num, 0) = NVL(op1.option2Num, 0) 
+        AND NVL(it.option2Num2, 0) = NVL(op2.option2Num, 0)
+        WHERE userId = #{userId} AND showNotice = 0
+		ORDER BY cartRegDate DESC, ct.cartNum DESC
+	</select>
+	
+	<select id="deliveryFeeMax" parameterType="String" resultType="com.sp.withtail.cart.Cart">               
+         SELECT NVL(MAX(deliveryFee),0) deliveryFeeMax 
+         FROM cart ct
+         JOIN item i ON ct.itemNum = i.itemNum
+         LEFT JOIN option2 op1 ON ct.option2Num = op1.option2Num
+		 LEFT JOIN option2 op2 ON ct.option2Num2 = op2.option2Num
+         LEFT JOIN itemStock it ON ct.itemNum = it.itemNum
+         AND NVL(it.option2Num, 0) = NVL(op1.option2Num, 0) 
+         AND NVL(it.option2Num2, 0) = NVL(op2.option2Num, 0)
+         WHERE userId = #{userId} AND NVL(totalStock, 0) &lt;&gt; 0 AND showNotice = 0
+	</select>
+
+	
+	<select id = "listNullCheck" parameterType="String" resultType="com.sp.withtail.cart.Cart">
+		 SELECT COUNT(ct.cartNum) cartNum
+		 FROM cart ct
+         JOIN item i ON ct.itemNum = i.itemNum
+         LEFT JOIN option2 op1 ON ct.option2Num = op1.option2Num
+		 LEFT JOIN option2 op2 ON ct.option2Num2 = op2.option2Num
+         LEFT JOIN itemStock it ON ct.itemNum = it.itemNum
+         AND NVL(it.option2Num, 0) = NVL(op1.option2Num, 0) 
+         AND NVL(it.option2Num2, 0) = NVL(op2.option2Num, 0)
+		 WHERE userId = #{userId} AND NVL(totalStock, 0) = 0  AND showNotice = 0
+	</select>
+	
+	
+	<delete id="deleteCart" parameterType="map">
+		DELETE FROM cart
+		WHERE userId = #{userId} 
+		<if test="gubun == 'item' ">
+			AND cartNum = #{cartNum}
+		</if>
+		<if test="gubun == 'list' ">
+			AND cartNum IN
+			<foreach collection="list" item="cartNum" index="index"
+				open="(" separator="," close=")">
+				#{cartNum}
+			</foreach>
+		</if>
+	</delete>
+	
+	<delete id="deleteCartExpiration">
+		DELETE FROM cart
+		WHERE cartRegDate + 15 &lt; SYSDATE
+	</delete>
+
+</mapper>

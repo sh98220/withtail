@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="itemManage">
+
+   <select id="itemSeq" resultType="Long">
+       SELECT item_seq.NEXTVAL from dual
+   </select>
+   
+   <insert id="insertItem" parameterType="com.sp.withtail.admin.itemManage.ItemManage">
+        INSERT INTO item(itemNum, itemName, ctNum, itemPrice, discount, itemPoint, deliveryFee,
+                         itemContent, showNotice, regDate, upddate, mainImage, madeby)  
+                  VALUES (#{itemNum}, #{itemName}, #{ctNum}, #{itemPrice}, #{discount}, #{itemPoint},
+                   #{deliveryFee}, #{itemContent}, #{showNotice}, SYSDATE, 
+                   SYSDATE, #{mainImage}, #{madeby})
+   </insert>
+   
+   <insert id="insertItemPhoto" parameterType="com.sp.withtail.admin.itemManage.ItemManage">
+       INSERT INTO itemPhoto(photoNum, itemNum, photoName) VALUES (itemphoto_seq.NEXTVAL, #{itemNum}, #{photoName})
+   </insert>
+   
+   <select id="option1Seq" resultType="Long">
+       SELECT option1_seq.NEXTVAL from dual
+   </select>
+   
+   <insert id="insertOption1" parameterType="com.sp.withtail.admin.itemManage.ItemManage">
+       INSERT INTO option1 (option1Num, option1Name, itemNum, parent ) 
+       VALUES (#{option1Num}, #{option1Name}, #{itemNum}, #{parent, jdbcType=INTEGER})
+   </insert>
+   
+   <update id="updateOption1" parameterType="com.sp.withtail.admin.itemManage.ItemManage">
+       UPDATE option1 SET option1Name = #{option1Name}
+       WHERE option1Num = #{option1Num}
+   </update>
+   
+   <delete id="deleteOption1">
+       DELETE FROM option1 WHERE option1Num = #{option1Num}
+   </delete>
+   
+    <select id="option2Seq" resultType="Long">
+       SELECT option2_seq.NEXTVAL from dual
+   </select>
+   
+   <insert id="insertOption2" parameterType="com.sp.withtail.admin.itemManage.ItemManage">
+       INSERT INTO option2 (option2Num, option2Name, option1Num, extraPrice) 
+       VALUES (#{option2Num}, #{option2Name}, #{option1Num}, #{extraPrice})
+   </insert>
+   
+   <update id="updateOption2" parameterType="com.sp.withtail.admin.itemManage.ItemManage">
+       UPDATE option2 SET option2Name = #{option2Name}
+       WHERE option2Num = #{option2Num}
+   </update>
+   
+   <delete id="deleteOption2">
+       DELETE FROM option2 WHERE option2Num = #{option2Num}
+   </delete>   
+   
+   <select id="readCategory" parameterType="Long" resultType="com.sp.withtail.admin.itemManage.ItemManage">
+       SELECT ctNum, ctName, parentCt
+		FROM category
+		WHERE ctNum = #{ctNum} 
+   </select>
+   
+   <select id="listCategory" resultType="com.sp.withtail.admin.itemManage.ItemManage">
+       SELECT ctNum, ctName, parentCt
+       FROM category
+       WHERE parentCt is null
+   </select>
+   
+   <select id="listSubCategory"  parameterType="Long" resultType="com.sp.withtail.admin.itemManage.ItemManage">
+       SELECT ctNum, ctName, parentCt
+       FROM category
+       WHERE parentCt = #{parentCt}
+   </select>
+   
+   	<!-- 상품 목록 -->
+	<sql id="where-list">
+		<if test="col=='all' ">
+			( INSTR(itemName, #{kwd}) &gt; 0
+				OR DBMS_LOB.INSTR(itemContent, #{kwd}) &gt; 0 )
+		</if>
+		<if test="col=='itemNum' ">
+			INSTR(itemNum, #{kwd}) = 1
+		</if>
+		<if test="col=='itemName' ">
+			INSTR(itemName, #{kwd}) &gt; 0
+		</if>
+		<if test="col=='itemcontent' ">
+			DBMS_LOB.INSTR(itemContent, #{kwd}) &gt; 0
+		</if>
+	</sql>
+	
+	<select id="dataCount" parameterType="map" resultType="Integer">
+	   SELECT NVL(COUNT(*), 0) FROM item i
+	    <if test="lastCtNum == 0 and subCtNum == 0 and parentCt != 0">
+        JOIN (
+	      select c1.ctNum 
+	      from category c1
+		  join (
+		          select ctNum 
+		          from category 
+		          where parentCt = #{parentCt}
+		          ) p on p.ctNum = c1.parentCt
+          ) c2 ON c2.ctNum = i.ctNum
+        </if>
+        <if test="lastCtNum == 0 and subCtNum != 0 and parentCt != 0">
+			JOIN (
+				  select c1.ctNum 
+				  from category c1
+				  join (
+			          select ctNum 
+			          from category 
+			          where parentCt = #{subCtNum}
+			          ) p on p.ctNum = c1.ctNum
+			) c2 ON c2.ctNum = i.ctNum
+        </if>
+        <where>
+	         <if test="lastCtNum != 0 and subCtNum != 0 and parentCt != 0">
+	          ctNum = #{lastCtNum}
+	         </if>
+	         <if test="kwd != null and kwd != '' ">
+	            AND <include refid="where-list"/>
+	         </if>
+        </where>
+	</select>
+	
+	<select id="listItem"  parameterType="map" resultType="com.sp.withtail.admin.itemManage.ItemManage">
+       select itemName, discount, i.itemNum, itemPrice, SUM(totalStock) totalStock,
+	          mainImage, TO_CHAR(upddate,'YYYY-MM-DD')upddate, showNotice, TO_CHAR(regDate,'YYYY-MM-DD')regDate, count(orderNum) orderNum
+	   from item i
+	   LEFT OUTER JOIN itemstock st on i.itemNum = st.itemNum
+       LEFT OUTER JOIN orderDetail od ON od.itemNum = i.itemNum 
+       <if test="lastCtNum == 0 and subCtNum == 0 and parentCt != 0">
+        JOIN (
+	      select c1.ctNum 
+	      from category c1
+		  join (
+		          select ctNum 
+		          from category 
+		          where parentCt = #{parentCt}
+		          ) p on p.ctNum = c1.parentCt
+          ) c2 ON c2.ctNum = i.ctNum
+        </if>
+        <if test="lastCtNum == 0 and subCtNum != 0 and parentCt != 0">
+			JOIN (
+				  select c1.ctNum 
+				  from category c1
+				  join (
+			          select ctNum 
+			          from category 
+			          where parentCt = #{subCtNum}
+			          ) p on p.ctNum = c1.ctNum
+			) c2 ON c2.ctNum = i.ctNum
+        </if>
+        <where>
+	         <if test="lastCtNum != 0 and subCtNum != 0 and parentCt != 0">
+	          ctNum = #{lastCtNum}
+	         </if>
+	         <if test="kwd != null and kwd != '' ">
+	            AND <include refid="where-list"/>
+	         </if>
+        </where>
+      group by itemName, discount, i.itemNum, itemPrice, mainImage, TO_CHAR(upddate,'YYYY-MM-DD'), showNotice, TO_CHAR(regDate,'YYYY-MM-DD')  
+      ORDER BY i.itemNum DESC
+      OFFSET #{offset} ROWS FETCH FIRST #{size} ROWS ONLY
+	</select>
+	
+	<select id="readItem" parameterType="Long" resultType="com.sp.withtail.admin.itemManage.ItemManage">
+	    SELECT itemNum, i.ctNum, c.ctNum, itemName, itemPrice, discount, itemPoint, madeby, 
+	    deliveryFee, itemContent, mainImage, showNotice, 
+	    TO_CHAR(regDate, 'YYYY-MM-DD') regDate, TO_CHAR(upddate, 'YYYY-MM-DD') upddate
+	    FROM item i 
+	    JOIN category c ON c.ctNum = i.ctNum 
+	    WHERE itemNum = #{itemNum}
+	</select>
+	
+	<select id="listItemPhoto" parameterType="Long" resultType="com.sp.withtail.admin.itemManage.ItemManage">
+	    SELECT photoNum, itemNum, photoName
+	    FROM itemPhoto
+	    WHERE itemNum = #{itemNum}
+	</select>
+	
+	<select id="listItemPhotoName" parameterType="Long" resultType="String">
+	    SELECT photoName
+	    FROM itemPhoto
+	    WHERE itemNum = #{itemNum}
+	</select>
+	
+	<select id="listItemPhotoNum" parameterType="Long" resultType="Long">
+	    SELECT photoNum
+	    FROM itemPhoto
+	    WHERE itemNum = #{itemNum}
+	</select>
+	
+	<select id="listOption1" parameterType="Long" resultType="com.sp.withtail.admin.itemManage.ItemManage">
+	   SELECT option1Num, option1Name, parent
+	   FROM option1
+	   WHERE itemNum = #{itemNum}
+	   ORDER BY parent NULLS FIRST, parent
+	</select>
+	
+	<select id="listOption2" parameterType="Long" resultType="com.sp.withtail.admin.itemManage.ItemManage">
+	   SELECT option2Num, option1Num, option2Name, extraPrice
+	   FROM option2
+	   WHERE option1Num = #{option1Num}
+	   ORDER BY option2Num
+	</select>
+	
+	<update id="updateItem" parameterType="com.sp.withtail.admin.itemManage.ItemManage">
+	  UPDATE item SET ctNum = #{ctNum}, itemName=#{itemName}, itemPrice=#{itemPrice}, itemPoint=#{itemPoint},
+	        madeby=#{madeby}, showNotice=#{showNotice}, itemContent=#{itemContent}, mainImage=#{mainImage},
+	        deliveryFee=#{deliveryFee}, upddate=SYSDATE
+	        WHERE itemNum=#{itemNum}
+	</update>
+	
+	<insert id="insertItemStock" parameterType="com.sp.withtail.admin.itemManage.ItemStock">
+	   INSERT INTO itemStock(stockNum, option2Num, option2Num2, totalStock, itemNum) 
+	   VALUES (itemStock_seq.NEXTVAL, #{option2Num, jdbcType=INTEGER}, #{option2Num2, jdbcType=INTEGER}, #{totalStock}, #{itemNum})
+	</insert>
+	
+	<update id="updateItemStock" parameterType="map">
+	   UPDATE itemStock SET totalStock = #{totalStock} 
+	   WHERE stockNum = #{stockNum}
+	</update>
+	
+    <delete id="deleteItemPhoto" parameterType="Long">
+		DELETE FROM itemPhoto WHERE photoNum = #{photoNum}
+	</delete>
+	
+	<delete id="deleteItem" parameterType="long">
+	   DELETE FROM item
+	   where itemNum = #{itemNum}
+	</delete>
+
+    <delete id="deleteListItem" parameterType="java.util.List">
+       DELETE FROM item
+       WHERE itemNum IN 
+       <foreach collection="list" item="itemNum" index="index" open="(" separator="," close=")">
+       #{itemNum}
+       </foreach>
+    </delete>
+	
+	<select id="stocklist"  parameterType="map" resultType="com.sp.withtail.admin.itemManage.ItemStock">
+			select st.itemNum itemNum, i.itemName itemName, stockNum, 
+			op2.option2Name option2Name, op22.option2Name option2Name2, i.mainImage, st.totalStock totalStock
+			from itemStock st
+			JOIN item i on i.itemNum = st.itemNum
+			LEFT OUTER JOIN option2 op2 ON st.option2Num = op2.option2Num
+			LEFT OUTER JOIN option2 op22 ON st.option2Num2 = op22.option2Num
+			where st.itemNum = #{itemNum}
+			order by stockNum asc
+	</select>
+	
+	<select id="stockDataCount" parameterType="map" resultType="Integer">
+	  select COUNT(*) FROM (
+		select st.itemNum, i.itemName, stockNum, op2.option2Name option2Name, op22.option2Name option2Name2
+		from itemStock st
+		JOIN item i on i.itemNum = st.itemNum
+		LEFT OUTER JOIN option2 op2 ON st.option2Num = op2.option2Num
+		LEFT OUTER JOIN option2 op22 ON st.option2Num2 = op22.option2Num
+		where st.itemNum = #{itemNum}
+		order by stockNum asc
+	   ) stcnt
+	</select>
+	
+	<delete id="deleteStock" parameterType="Long">
+	   DELETE FROM itemStock where itemNum = #{itemNum}
+	</delete>
+	
+	<select id="orderCount" parameterType="long" resultType="Integer">
+	   SELECT NVL(COUNT(*),0) from orderDetail where itemNum = #{itemNum}
+	</select>
+</mapper>

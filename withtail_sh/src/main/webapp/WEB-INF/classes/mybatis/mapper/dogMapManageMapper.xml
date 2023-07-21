@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="dogMapManage">
+
+   <sql id="where-list">
+		<choose>
+			<when test="col == 'placeNum' ">
+			   ( placeNum  = #{kwd} )
+			</when>
+			<when test="col == 'placeName'">
+			    INSTR(placeName, #{kwd}) &gt; 0
+			</when>
+		</choose>
+	</sql>    
+
+   <update id="updateDogMap" parameterType="com.sp.withtail.admin.dogMapManage.DogMapManage">
+       UPDATE dogmap SET placeName = #{placeName}, content=#{content}, mainImage=#{mainImage}
+       WHERE placeNum = #{placeNum}
+   </update>
+   
+   <select id="dataCount" parameterType="map" resultType="Integer">
+       SELECT NVL(COUNT(*), 0) FROM dogmap
+        <where>
+	         <if test="kwd != null and kwd != '' ">
+	            <include refid="where-list"/>
+	         </if>
+        </where>       
+   </select>
+  
+   <insert id="insertDogMapPhoto" parameterType="com.sp.withtail.admin.dogMapManage.DogMapManage">
+       INSERT INTO dogmapPhoto(photoNum, placeNum, photoName) VALUES (dogmapphotofile_seq.NEXTVAL, #{placeNum}, #{photoName})
+   </insert>
+   
+   <delete id="deleteDogMapPhoto" parameterType="Long">
+		DELETE FROM dogmapPhoto WHERE photoNum = #{photoNum}
+	</delete>
+	
+	<select id="readDogMap" parameterType="long" resultType="com.sp.withtail.admin.dogMapManage.DogMapManage">
+	    SELECT placeNum, placeName, content, mainImage
+	    FROM dogmap
+	    WHERE placeNum = #{placeNum}
+	</select>
+   
+   
+   <select id="listDogMap" parameterType="map" resultType="com.sp.withtail.admin.dogMapManage.DogMapManage">
+       SELECT placeNum, placeName, content, mainImage 
+       FROM dogmap
+        <where>
+	         <if test="kwd != null and kwd != '' ">
+	           <include refid="where-list"/>
+	         </if>
+        </where>
+      ORDER BY placeNum DESC
+      OFFSET #{offset} ROWS FETCH FIRST #{size} ROWS ONLY        
+   </select>
+   
+   	<select id="listDogMapPhoto" parameterType="Long" resultType="com.sp.withtail.admin.dogMapManage.DogMapManage">
+	    SELECT photoNum, placeNum, photoName
+	    FROM dogmapPhoto
+	    WHERE placeNum = #{placeNum}
+	</select>
+	
+	<select id="listDogMapPhotoName" parameterType="Long" resultType="String">
+	    SELECT photoName
+	    FROM dogmapPhoto
+	    WHERE placeNum = #{placeNum}
+	</select>
+	
+	
+	
+	
+
+</mapper>

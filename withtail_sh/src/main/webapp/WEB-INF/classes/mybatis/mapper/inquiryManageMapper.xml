@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="inquiryManage">
+	<sql id="where-list">
+		<if test="condition=='all' ">
+			( INSTR(subject, #{keyword}) &gt; 0 
+				OR INSTR(content, #{keyword}) &gt; 0 )
+		</if>
+		<if test="condition=='subject'">
+			INSTR(subject, #{keyword}) &gt; 0
+		</if>
+		<if test="condition=='content'">
+			DBMS_LOB.INSTR(content, #{keyword}) &gt; 0 
+		</if>
+		<if test="condition=='userName'">
+			userName=#{keyword}
+		</if>
+		<if test="condition=='userId'">
+			INSTR(i.userId, #{keyword}) = 1
+		</if>
+		<if test="condition=='reg_data'">
+			( TO_CHAR(i.regDate, 'YYYY-MM-DD') = #{keyword}
+				OR TO_CHAR(i.regDate, 'YYYYMMDD') = #{keyword} )
+		</if>
+	</sql>
+	
+	
+	<!-- 글개수 -->
+	<select id="dataCount" parameterType="map" resultType="Integer">
+		SELECT NVL(COUNT(*), 0)
+		FROM inquiry i
+		JOIN member1 m ON i.userId=m.userId
+		<where>
+			<if test="keyword!=null and keyword!='' ">
+				AND <include refid="where-list"/>
+			</if>
+		</where>   
+	</select>
+
+	<!-- 글리스트 -->
+    <select id="listInquiry" parameterType="map" resultType="com.sp.withtail.admin.inquiryManage.InquiryManage">
+		SELECT i.num, i.userId, userName, category, subject,
+			   TO_CHAR(i.regDate, 'YYYY-MM-DD') regDate, answerDate
+		FROM inquiry i
+		JOIN member1 m ON i.userId=m.userId
+		<where>
+			<if test="keyword!=null and keyword!='' ">
+				AND <include refid="where-list"/>
+			</if>
+		</where>   
+		ORDER BY num DESC
+		OFFSET #{offset} ROWS FETCH FIRST #{size} ROWS ONLY
+	</select>
+	
+	<!-- 글보기 -->
+	<select id="readInquiry" resultType="com.sp.withtail.admin.inquiryManage.InquiryManage" parameterType="Long">
+		SELECT i.num, i.userId, m.userName, category, subject, content, 
+				i.regDate, answerId, a.userName answerName, answer, answerDate
+		FROM inquiry i
+		JOIN member1 m ON i.userId=m.userId
+		LEFT OUTER JOIN member1 a ON i.answerId = a.userId
+		WHERE i.num = #{num}
+	</select>
+	
+	
+	<update id="answerInquiry" parameterType="com.sp.withtail.admin.inquiryManage.InquiryManage">
+		UPDATE inquiry SET answerId = #{answerId}, answer = #{answer}, answerDate = SYSDATE
+		WHERE num = #{num}
+	</update>
+	
+	<update id="deleteAnswer" parameterType="Long">
+		UPDATE inquiry SET answerId = NULL, answer = NULL, answerDate = NULL
+		WHERE num = #{num}
+	</update>
+	      
+	<!-- 삭제 -->
+	<delete id="deleteInquiry" parameterType="Long">
+		DELETE FROM inquiry WHERE num = #{num}
+	</delete>
+	
+	
+	
+</mapper>

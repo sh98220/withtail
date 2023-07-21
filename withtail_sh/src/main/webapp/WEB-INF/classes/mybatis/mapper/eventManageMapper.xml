@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="eventManage">
+
+	<insert id="insertEvent" parameterType="com.sp.withtail.admin.eventManage.EventManage">
+		INSERT INTO event(num, subject, content, 
+			startDate, endDate, winningDate, regDate,
+			maxCount, enabled, hitCount, imageFilename)
+		VALUES (event_seq.NEXTVAL, #{subject}, #{content},
+			TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS'), 
+			TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS'),
+			TO_DATE(#{winningDate, jdbcType=VARCHAR}, 'YYYY-MM-DD HH24:MI:SS'),
+			SYSDATE, #{maxCount}, #{enabled}, 0, #{imageFilename})
+	</insert>
+
+	<sql id="where-list">
+		<choose>
+			<when test="condition == 'all' ">
+			   ( INSTR(subject, #{keyword}) &gt; 0
+		          OR DBMS_LOB.INSTR(content, #{keyword}) &gt; 0 )
+			</when>
+			<otherwise>
+			   ( TO_CHAR(${condition}, 'YYYYMMDD') = #{keyword}
+		          OR TO_CHAR(${condition}, 'YYYY-MM-DD') = #{keyword} )
+			</otherwise>
+		</choose>
+	</sql>
+	
+	<sql id="period-list">
+		<choose>
+			<when test="category == 'progress' ">
+				( startDate &lt;= SYSDATE  AND endDate &gt; SYSDATE )
+			</when>
+			<when test="category == 'upcoming' ">
+				( startDate &gt;= SYSDATE )
+			</when>
+			<when test="category == 'winner' ">
+				( maxCount != 0 AND winningDate &lt;= SYSDATE AND ADD_MONTHS(winningDate, 6) &gt;= SYSDATE ) 
+			</when>
+			<when test="category == 'ended' ">
+				( endDate &lt; SYSDATE )
+			</when>
+		</choose>
+	</sql>
+
+	<!-- 글개수 -->
+	<select id="dataCount" parameterType="map" resultType="Integer">
+		SELECT NVL(COUNT(*), 0)
+		FROM event
+		<where>
+			<if test="enabled != null and enabled == 0">
+				enabled = 0
+			</if>
+			<if test="category != 'all' ">
+				AND <include refid="period-list"/>
+			</if>
+			<if test="keyword!=null and keyword!='' ">
+				AND <include refid="where-list"/>
+			</if>
+		</where>   
+	</select>
+
+	<!-- 글리스트 -->
+	<select id="listEvent" parameterType="map" resultType="com.sp.withtail.admin.eventManage.EventManage">
+		SELECT e.num, subject, hitCount, enabled,
+			   TO_CHAR(startDate,'YYYY-MM-DD HH24:MI') startDate,
+			   TO_CHAR(endDate, 'YYYY-MM-DD HH24:MI') endDate, 
+			   TO_CHAR(winningDate, 'YYYY-MM-DD HH24:MI') winningDate,
+			   TO_CHAR(regDate, 'YYYY-MM-DD HH24:MI') regDate, maxCount, imageFilename
+			   <if test="category != 'winner'">
+			   		, NVL(applyCount, 0) applyCount
+			   </if>
+			   <if test="category == 'winner'">
+			   		, NVL(winnerCount, 0) winnerCount
+			   </if>
+		FROM event e
+		<if test="category != 'winner'">
+            LEFT OUTER JOIN (
+				SELECT eventnum, COUNT(*) applyCount
+				FROM eventapply
+				GROUP BY eventnum
+			) t ON e.num = t.eventnum
+		</if>
+		<if test="category == 'winner'">
+			LEFT OUTER JOIN (
+				SELECT winnernum, COUNT(*) winnerCount
+				FROM eventWinner
+				GROUP BY winnernum
+			) w ON e.num = w.winnernum
+		</if>
+		<where>
+			<if test="enabled != null and enabled == 0">
+				enabled = 0
+			</if>
+			<if test="category != 'all' ">
+				AND <include refid="period-list"/>
+			</if>
+			<if test="keyword != null and keyword != ''">
+				AND <include refid="where-list"/>
+			</if>
+		</where>
+		ORDER BY endDate DESC
+		OFFSET #{offset} ROWS FETCH FIRST #{size} ROWS ONLY
+	</select>
+
+	<!-- 글보기 -->
+	<select id="readEvent" parameterType="Long" resultType="com.sp.withtail.admin.eventManage.EventManage">
+		SELECT num, subject, content, 
+			TO_CHAR(startDate,'YYYY-MM-DD HH24:MI') startDate,
+			TO_CHAR(endDate, 'YYYY-MM-DD HH24:MI') endDate, 
+			TO_CHAR(winningDate, 'YYYY-MM-DD HH24:MI') winningDate, 
+			TO_CHAR(regDate, 'YYYY-MM-DD HH24:MI') regDate, 
+			maxCount, enabled, hitCount, imageFilename
+		FROM event
+		WHERE num = #{num}
+	</select>
+	
+	<!-- 조회수 증가 -->
+	<update id="updateHitCount" parameterType="Long">
+		UPDATE event SET hitCount = hitCount+1 WHERE num = #{num}
+	</update>
+	
+	<!-- AND 가 필요 없는 경우 자동으로 제거 됨 -->
+	<!-- 이전글 -->
+	<select id="preReadEvent" parameterType="map" resultType="com.sp.withtail.admin.eventManage.EventManage">
+		SELECT num, subject
+		FROM event
+		<where>
+			<if test="enabled != null and enabled == 0">
+				enabled = 0
+			</if>
+			<if test="category != 'all' ">
+				AND <include refid="period-list"/>
+			</if>
+			<if test="keyword != null and keyword != '' ">
+				AND <include refid="where-list"/>
+			</if>
+			AND (num &gt; #{num})
+		</where>
+		ORDER BY endDate ASC
+		FETCH FIRST 1 ROWS ONLY
+	</select>
+
+	<!-- 다음글 -->
+	<select id="nextReadEvent" parameterType="map" resultType="com.sp.withtail.admin.eventManage.EventManage">
+		SELECT num, subject
+		FROM event
+		<where>
+			<if test="enabled != null and enabled == 0">
+				enabled = 0
+			</if>
+			<if test="category != 'all' ">
+				AND <include refid="period-list"/>
+			</if>
+			<if test="keyword != null and keyword != '' ">
+				AND <include refid="where-list"/>
+			</if>
+			AND (num &lt; #{num})
+		</where>
+		ORDER BY endDate DESC
+		FETCH FIRST 1 ROWS ONLY
+	</select>
+
+	<!-- 수정 -->
+	<update id="updateEvent" parameterType="com.sp.withtail.admin.eventManage.EventManage">
+		UPDATE event SET subject=#{subject}, content=#{content},
+				startDate=TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS'),
+				endDate=TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS'),
+				winningDate=TO_DATE(#{winningDate, jdbcType=VARCHAR}, 'YYYY-MM-DD HH24:MI:SS'),
+				maxCount=#{maxCount},
+				enabled=#{enabled},
+				imageFilename=#{imageFilename}
+		WHERE num = #{num}
+	</update>
+ 
+	<!-- 삭제 -->
+	<delete id="deleteEvent" parameterType="Long">
+		DELETE FROM event WHERE num = #{num}
+	</delete>
+	
+
+	<!-- 이벤트 응모자 리스트 -->
+	<select id="listEventApply" parameterType="Long" resultType="com.sp.withtail.admin.eventManage.EventManage">
+		SELECT e.num, e.userId, nickName, e.regDate, eventnum
+		FROM eventapply e
+		JOIN member1 m ON e.userId = m.userId
+		JOIN event v ON e.eventNum = v.num
+		WHERE eventnum = #{num}
+		ORDER BY regDate ASC
+	</select>
+	
+	<!-- 이벤트 당첨자 등록 1 -->
+	<update id="insertEventWinner1" parameterType="com.sp.withtail.admin.eventManage.EventManage">
+		INSERT INTO eventWinner(winnerNum, rank, regDate) 
+			SELECT num, 0, SYSDATE FROM (
+				SELECT * FROM eventapply
+				WHERE eventNum = #{num}
+				ORDER BY DBMS_RANDOM.VALUE
+			) tb WHERE ROWNUM &lt;= #{maxCount}
+	</update>
+
+	<!-- 이벤트 당첨자 등록 2 -->
+	<insert id="insertEventWinner2" parameterType="com.sp.withtail.admin.eventManage.EventManage">
+		INSERT INTO eventWinner(winnernum, rank, regDate) 
+			VALUES (#{winnernum}, #{rank}, SYSDATE)
+	</insert>
+	
+
+	<!-- 이벤트 당첨 여부 -->
+	<select id="readEventWinner" parameterType="map" resultType="com.sp.withtail.admin.eventManage.EventManage">
+		SELECT winnerNum 
+		FROM eventWinner w
+		JOIN eventapply p ON p.num = w.winnerNum
+		WHERE winnerNum = #{winnerNum}
+	</select>
+	
+	<!-- 이벤트 당첨자 리스트 -->
+	<select id="listEventWinner" parameterType="Long" resultType="com.sp.withtail.admin.eventManage.EventManage">
+       SELECT winnerNum, p.userId, nickName, p.regDate
+		FROM eventWinner w
+		JOIN eventapply p ON p.num = w.winnerNum
+        JOIN event e on e.num = p.eventnum
+		JOIN member1 m ON m.userId = p.userId
+		WHERE p.eventnum = #{num}
+		ORDER BY rank ASC
+	</select>
+
+</mapper>
